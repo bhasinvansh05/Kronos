@@ -303,7 +303,7 @@
       color: var(--ink-tertiary);
     }
 
-    #chart {
+    .chart-shell {
       flex: 1;
       min-height: 480px;
       background: var(--bg-chart);
@@ -311,6 +311,12 @@
       border: 1px solid var(--stroke-subtle);
       position: relative;
       overflow: hidden;
+    }
+
+    #chart {
+      width: 100%;
+      height: 100%;
+      min-height: 480px;
     }
 
     .chart-empty, .chart-loading {
@@ -326,6 +332,10 @@
       padding: 24px;
       z-index: 2;
       background: var(--bg-chart);
+    }
+
+    .chart-empty[hidden], .chart-loading[hidden] {
+      display: none !important;
     }
 
     .chart-empty h3 {
@@ -666,7 +676,7 @@
       .layout { grid-template-columns: 1fr; }
       .rail { position: static; order: 2; }
       .canvas { min-height: 520px; order: 1; }
-      #chart { min-height: 55vh; }
+      .chart-shell, #chart { min-height: 55vh; }
       .model-chip .device-label { display: none; }
       .topbar { flex-wrap: wrap; }
       .search-wrap { max-width: none; order: 3; flex-basis: 100%; }
@@ -709,7 +719,8 @@
           <div class="inst-meta" id="instMeta"></div>
         </div>
 
-        <div id="chart" role="img" aria-label="Market candlestick chart">
+        <div class="chart-shell" style="position:relative;flex:1;min-height:480px;">
+          <div id="chart" role="img" aria-label="Market candlestick chart"></div>
           <div class="chart-empty" id="chartEmpty">
             <h3>Search a ticker to load the market</h3>
             <p>Pull live OHLCV for any equity, ETF, or crypto pair, then forecast the next 24–48 hours with Kronos.</p>
@@ -960,9 +971,13 @@
     }
 
     function setLoading(on, text) {
-      $("chartEmpty").hidden = true;
-      $("chartLoading").hidden = !on;
-      if (on) $("loadingText").textContent = text || "Loading…";
+      const empty = $("chartEmpty");
+      const loading = $("chartLoading");
+      if (empty) empty.hidden = true;
+      if (loading) {
+        loading.hidden = !on;
+        if (on) $("loadingText").textContent = text || "Loading…";
+      }
     }
 
     async function loadChart() {
@@ -1033,8 +1048,10 @@
     }
 
     function renderChart() {
-      $("chartEmpty").hidden = true;
-      $("chartLoading").hidden = true;
+      const empty = $("chartEmpty");
+      const loading = $("chartLoading");
+      if (empty) empty.hidden = true;
+      if (loading) loading.hidden = true;
       const hist = state.bars;
       if (!hist.length) return;
 
@@ -1126,10 +1143,16 @@
         font: { family: "IBM Plex Sans", color: "#0F172A" },
         hovermode: "x unified",
         dragmode: "pan",
+        height: Math.max(480, ($("chart").clientHeight || 480)),
       };
 
       const config = { responsive: true, displayModeBar: false, scrollZoom: true };
-      Plotly.react("chart", traces, layout, config);
+      try {
+        Plotly.react("chart", traces, layout, config);
+      } catch (err) {
+        console.error("Plotly render failed", err);
+        throw err;
+      }
 
       $("chart").setAttribute(
         "aria-label",
@@ -1316,6 +1339,20 @@
       } catch { return null; }
     }
 
+    function applyParamDefaults(d) {
+      if (!d) return;
+      if (d.interval) setIntervalSeg(d.interval);
+      if (d.horizon_hours != null) setHorizon(Number(d.horizon_hours));
+      else if (d.horizon != null) setHorizon(Number(d.horizon));
+      if (d.lookback != null) { lookbackEl.value = d.lookback; $("lookbackVal").textContent = d.lookback; }
+      if (d.model_key) modelKeyEl.value = d.model_key;
+      if (d.temperature != null) { $("temperature").value = d.temperature; $("tempVal").textContent = Number(d.temperature).toFixed(2); }
+      if (d.top_p != null) { $("topP").value = d.top_p; $("topPVal").textContent = Number(d.top_p).toFixed(2); }
+      if (d.sample_count != null) $("sampleCount").value = d.sample_count;
+      if (d.device) $("device").value = d.device;
+      updatePredChip();
+    }
+
     async function init() {
       updatePredChip();
       try {
@@ -1327,17 +1364,15 @@
         setStatus("Offline", "err");
       }
 
+      // Tuned defaults from /api/defaults, then localStorage overrides.
+      try {
+        const defs = await api("/api/defaults");
+        applyParamDefaults(defs);
+      } catch { /* keep HTML defaults */ }
+
       const saved = restore();
       if (saved) {
-        if (saved.interval) setIntervalSeg(saved.interval);
-        if (saved.horizon) setHorizon(saved.horizon);
-        if (saved.lookback) { lookbackEl.value = saved.lookback; $("lookbackVal").textContent = saved.lookback; }
-        if (saved.model_key) modelKeyEl.value = saved.model_key;
-        if (saved.temperature) { $("temperature").value = saved.temperature; $("tempVal").textContent = Number(saved.temperature).toFixed(2); }
-        if (saved.top_p) { $("topP").value = saved.top_p; $("topPVal").textContent = Number(saved.top_p).toFixed(2); }
-        if (saved.sample_count) $("sampleCount").value = saved.sample_count;
-        if (saved.device) $("device").value = saved.device;
-        updatePredChip();
+        applyParamDefaults(saved);
         if (saved.symbol) await selectTicker(saved.symbol, saved.name);
       }
     }
