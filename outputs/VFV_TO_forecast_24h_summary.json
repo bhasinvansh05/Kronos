@@ -1,0 +1,21 @@
+{
+  "symbol": "VFV.TO",
+  "name": "Vanguard S&P 500 Index ETF",
+  "currency": "CAD",
+  "mcp_quote_price": 193.04,
+  "history_last_close": 193.0399932861328,
+  "history_last_timestamp": "2026-09-28 15:55:00",
+  "forecast_interval": "5min",
+  "lookback_bars": 400,
+  "pred_bars": 78,
+  "forecast_start": "2026-09-29 09:30:00",
+  "forecast_end": "2026-09-29 15:55:00",
+  "model": "NeoQuasar/Kronos-mini",
+  "forecast_open_first": 193.1070098876953,
+  "forecast_close_last": 192.7884979248047,
+  "forecast_high_max": 193.20591735839844,
+  "forecast_low_min": 192.2312469482422,
+  "expected_change_abs": -0.251495361328125,
+  "expected_change_pct": -0.13028383255004883,
+  "path_mean_close": 192.61338806152344
+}
