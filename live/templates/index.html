@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kronos Live — 24h Market Predictor</title>
+  <meta name="description" content="Search any ticker, pull live market data, and forecast the next 24 hours with Kronos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/live.css" />
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div class="app">
+    <header class="top">
+      <div class="brand-block">
+        <p class="eyebrow">Foundation model for K-lines</p>
+        <h1 class="brand">Kronos <span>Live</span></h1>
+      </div>
+      <div class="model-chip" id="modelChip">
+        <span class="dot" id="modelDot"></span>
+        <span id="modelLabel">Model idle</span>
+      </div>
+    </header>
+
+    <section class="hero-search">
+      <form id="searchForm" class="search-shell" autocomplete="off">
+        <label class="sr-only" for="tickerInput">Search ticker</label>
+        <input
+          id="tickerInput"
+          name="ticker"
+          type="text"
+          placeholder="Search a ticker — VFV.TO, AAPL, BTC-USD…"
+          spellcheck="false"
+          autofocus
+        />
+        <button type="submit" id="predictBtn">Predict 24h</button>
+        <ul id="suggestList" class="suggest" hidden></ul>
+      </form>
+      <p class="lede">Live market bars in, Kronos forecast out — next-session path for equities, full 24h for crypto.</p>
+    </section>
+
+    <section class="status-row" id="statusRow" hidden>
+      <div class="quote-card" id="quoteCard">
+        <div>
+          <p class="sym" id="qSymbol">—</p>
+          <p class="name" id="qName">—</p>
+        </div>
+        <div class="quote-nums">
+          <p class="price" id="qPrice">—</p>
+          <p class="chg" id="qChg">—</p>
+        </div>
+      </div>
+      <div class="metrics" id="metrics">
+        <div class="metric"><span>Forecast close</span><strong id="mClose">—</strong></div>
+        <div class="metric"><span>Expected Δ</span><strong id="mDelta">—</strong></div>
+        <div class="metric"><span>Path high / low</span><strong id="mRange">—</strong></div>
+        <div class="metric"><span>Horizon</span><strong id="mHorizon">—</strong></div>
+      </div>
+    </section>
+
+    <section class="chart-stage">
+      <div class="chart-head">
+        <h2 id="chartTitle">Awaiting ticker</h2>
+        <div class="chart-controls">
+          <label>
+            Model
+            <select id="modelSelect">
+              <option value="kronos-mini" selected>Kronos-mini</option>
+              <option value="kronos-small">Kronos-small</option>
+              <option value="kronos-base">Kronos-base</option>
+            </select>
+          </label>
+          <label>
+            Temp
+            <input id="tempInput" type="number" min="0.1" max="2" step="0.1" value="1.0" />
+          </label>
+        </div>
+      </div>
+      <div id="chart" class="chart"></div>
+      <div class="legend">
+        <span class="lg hist"><i></i> Live history</span>
+        <span class="lg pred"><i></i> 24h Kronos forecast</span>
+      </div>
+      <p class="hint" id="hint">Search a symbol and run a prediction to overlay the next 24 hours on the chart.</p>
+    </section>
+
+    <footer class="foot">
+      <span>Not financial advice. Forecasts are model samples, not guarantees.</span>
+      <span id="footMeta">—</span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/js/live.js"></script>
+</body>
+</html>
