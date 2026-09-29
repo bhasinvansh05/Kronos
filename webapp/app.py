@@ -68,8 +68,41 @@ AVAILABLE_MODELS = {
     },
 }
 
-INTERVAL_HOURS = {"15m": 0.25, "30m": 0.5, "1h": 1.0}
-YF_PERIOD = {"15m": "60d", "30m": "60d", "1h": "730d"}
+# Hours per bar — used for forecast pred_len. Display-only intervals included.
+INTERVAL_HOURS = {
+    "1m": 1 / 60,
+    "5m": 5 / 60,
+    "15m": 0.25,
+    "30m": 0.5,
+    "1h": 1.0,
+    "1d": 24.0,
+    "1wk": 24.0 * 7,
+}
+
+# Default fetch window when only interval is supplied (no display range).
+YF_PERIOD = {
+    "1m": "7d",
+    "5m": "60d",
+    "15m": "60d",
+    "30m": "60d",
+    "1h": "730d",
+    "1d": "5y",
+    "1wk": "10y",
+}
+
+# Chart display ranges (Apple Stocks–style). Forecast still uses 15m/30m/1h.
+DISPLAY_RANGES = {
+    "1D": {"label": "1D", "period": "1d", "interval": "5m", "description": "1 day · 5m bars"},
+    "5D": {"label": "5D", "period": "5d", "interval": "15m", "description": "5 days · 15m bars"},
+    "1W": {"label": "1W", "period": "5d", "interval": "30m", "description": "1 week · 30m bars"},
+    "1M": {"label": "1M", "period": "1mo", "interval": "1h", "description": "1 month · 1h bars"},
+    "3M": {"label": "3M", "period": "3mo", "interval": "1d", "description": "3 months · daily"},
+    "6M": {"label": "6M", "period": "6mo", "interval": "1d", "description": "6 months · daily"},
+    "1Y": {"label": "1Y", "period": "1y", "interval": "1d", "description": "1 year · daily"},
+    "5Y": {"label": "5Y", "period": "5y", "interval": "1wk", "description": "5 years · weekly"},
+}
+
+FORECAST_INTERVALS = ("15m", "30m", "1h")
 
 # Hardcoded fallbacks when backtest_results/best_params.json is absent.
 HARDCODED_DEFAULTS = {
@@ -81,6 +114,7 @@ HARDCODED_DEFAULTS = {
     "temperature": 0.8,
     "top_p": 0.9,
     "sample_count": 1,
+    "display_range": "1M",
 }
 
 BEST_PARAMS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest_results", "best_params.json")
@@ -97,13 +131,18 @@ def _bar_to_dict(ts: pd.Timestamp, row: pd.Series) -> dict[str, Any]:
     }
 
 
-def fetch_ohlcv(symbol: str, interval: str, lookback: int | None = None) -> tuple[pd.DataFrame, dict]:
+def fetch_ohlcv(
+    symbol: str,
+    interval: str,
+    lookback: int | None = None,
+    period: str | None = None,
+) -> tuple[pd.DataFrame, dict]:
     if interval not in INTERVAL_HOURS:
         raise ValueError(f"Unsupported interval: {interval}")
 
     ticker = yf.Ticker(symbol)
-    period = YF_PERIOD[interval]
-    hist = ticker.history(period=period, interval=interval, auto_adjust=True)
+    fetch_period = period or YF_PERIOD.get(interval, "1y")
+    hist = ticker.history(period=fetch_period, interval=interval, auto_adjust=True)
     if hist is None or hist.empty:
         raise LookupError(f"No market data for {symbol}")
 
@@ -118,9 +157,6 @@ def fetch_ohlcv(symbol: str, interval: str, lookback: int | None = None) -> tupl
     )
     hist = hist[["open", "high", "low", "close", "volume"]].dropna()
     hist.index = pd.to_datetime(hist.index)
-    if hist.index.tz is not None:
-        # Keep timezone-aware stamps; Kronos time features use local components.
-        pass
 
     if lookback is not None and lookback > 0:
         hist = hist.iloc[-lookback:]
@@ -129,6 +165,8 @@ def fetch_ohlcv(symbol: str, interval: str, lookback: int | None = None) -> tupl
         "currency": "USD",
         "timezone": str(hist.index.tz) if hist.index.tz else "UTC",
         "count": int(len(hist)),
+        "period": fetch_period,
+        "interval": interval,
     }
     try:
         info = ticker.fast_info
@@ -409,34 +447,73 @@ def validate_ticker():
         return jsonify({"valid": False, "symbol": symbol, "error": str(exc)})
 
 
+@app.route("/api/ranges")
+def ranges():
+    """List chart display ranges (1D … 5Y)."""
+    return jsonify(
+        {
+            "ranges": [
+                {"key": key, **cfg}
+                for key, cfg in DISPLAY_RANGES.items()
+            ],
+            "forecast_intervals": list(FORECAST_INTERVALS),
+            "default": HARDCODED_DEFAULTS.get("display_range", "1M"),
+        }
+    )
+
+
 @app.route("/api/ohlcv")
 def ohlcv():
     symbol = (request.args.get("symbol") or "").strip().upper()
-    interval = (request.args.get("interval") or "1h").strip()
+    display_range = (request.args.get("range") or "").strip().upper()
+    interval = (request.args.get("interval") or "").strip()
     lookback = request.args.get("lookback")
-    lookback_n = int(lookback) if lookback else 256
+    period = request.args.get("period")
 
     if not symbol:
         return jsonify({"error": "symbol is required"}), 400
-    if interval not in INTERVAL_HOURS:
-        return jsonify({"error": f"interval must be one of {list(INTERVAL_HOURS)}"}), 400
+
+    range_key = None
+    if display_range:
+        if display_range not in DISPLAY_RANGES:
+            return jsonify({"error": f"range must be one of {list(DISPLAY_RANGES)}"}), 400
+        cfg = DISPLAY_RANGES[display_range]
+        interval = cfg["interval"]
+        period = cfg["period"]
+        range_key = display_range
+        lookback_n = None
+    else:
+        interval = interval or "1h"
+        if interval not in INTERVAL_HOURS:
+            return jsonify({"error": f"interval must be one of {list(INTERVAL_HOURS)}"}), 400
+        lookback_n = int(lookback) if lookback else 256
 
     try:
-        # Fetch extra bars so chart has context beyond lookback window used for predict.
-        fetch_n = max(lookback_n, 256)
-        hist, meta = fetch_ohlcv(symbol, interval, lookback=fetch_n)
+        if lookback_n is not None:
+            fetch_n = max(lookback_n, 64)
+            hist, meta = fetch_ohlcv(symbol, interval, lookback=fetch_n, period=period)
+        else:
+            hist, meta = fetch_ohlcv(symbol, interval, lookback=None, period=period)
+
         bars = [_bar_to_dict(ts, row) for ts, row in hist.iterrows()]
         change_pct = None
         if len(bars) >= 2:
-            prev, last = bars[-2]["close"], bars[-1]["close"]
-            if prev:
-                change_pct = ((last - prev) / prev) * 100.0
+            first, last = bars[0]["close"], bars[-1]["close"]
+            if first:
+                change_pct = ((last - first) / first) * 100.0
         return jsonify(
             {
                 "symbol": symbol,
                 "interval": interval,
+                "range": range_key,
+                "period": period or meta.get("period"),
                 "bars": bars,
-                "meta": {**meta, "change_pct": change_pct},
+                "meta": {
+                    **meta,
+                    "change_pct": change_pct,
+                    "range": range_key,
+                    "range_label": DISPLAY_RANGES[range_key]["label"] if range_key else None,
+                },
             }
         )
     except LookupError as exc:
@@ -468,8 +545,13 @@ def predict():
 
     if not symbol:
         return jsonify({"error": "symbol is required"}), 400
-    if interval not in INTERVAL_HOURS:
-        return jsonify({"error": f"Unsupported interval: {interval}"}), 400
+    if interval not in FORECAST_INTERVALS:
+        return jsonify(
+            {
+                "error": f"Forecast interval must be one of {list(FORECAST_INTERVALS)} "
+                f"(display ranges like 1Y use daily/weekly for charting only)"
+            }
+        ), 400
     if horizon_hours not in (24, 48):
         return jsonify({"error": "horizon_hours must be 24 or 48"}), 400
 

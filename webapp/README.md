@@ -17,8 +17,9 @@ Open http://localhost:7070
 ## Features
 
 - Search any Yahoo Finance symbol (equities, ETFs, crypto like `BTC-USD`)
-- OHLCV candlestick + volume chart
-- Forecast horizon 24h / 48h at 15m, 30m, or 1h intervals
+- Chart display ranges: **1D · 5D · 1W · 1M · 3M · 6M · 1Y · 5Y**
+- OHLCV candlestick + volume chart (packed continuous bars)
+- Forecast horizon 24h / 48h at 15m, 30m, or 1h bar sizes
 - Kronos-mini / small / base with sampling controls (T, top_p, samples)
 - Predictions logged under `prediction_results/` for backtesting
 - Tuned sampling defaults from historical backtests (`GET /api/defaults`)
@@ -53,5 +54,6 @@ Outputs:
 - `GET /api/models`
 - `POST /api/model/load`
 - `GET /api/tickers/search?q=`
-- `GET /api/ohlcv?symbol=&interval=&lookback=`
+- `GET /api/ranges` — display range catalog (1D…5Y)
+- `GET /api/ohlcv?symbol=&range=1M` (or `interval` + `lookback`)
 - `POST /api/predict`

@@ -311,6 +311,49 @@
       color: var(--ink-tertiary);
     }
 
+    .range-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 0 0 12px;
+      padding: 4px;
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: var(--radius-control);
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .range-bar button {
+      border: 0;
+      background: transparent;
+      min-height: 32px;
+      min-width: 40px;
+      padding: 0 10px;
+      border-radius: 8px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--ink-secondary);
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease;
+    }
+
+    .range-bar button[aria-pressed="true"] {
+      background: #fff;
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .range-bar button:hover {
+      color: var(--ink-primary);
+    }
+
+    .range-bar button:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 1px;
+    }
+
     .chart-shell {
       flex: 1;
       min-height: 480px;
@@ -727,6 +770,17 @@
           <div class="inst-meta" id="instMeta"></div>
         </div>
 
+        <div class="range-bar" id="rangeBar" role="group" aria-label="Chart display range">
+          <button type="button" data-range="1D" aria-pressed="false">1D</button>
+          <button type="button" data-range="5D" aria-pressed="false">5D</button>
+          <button type="button" data-range="1W" aria-pressed="false">1W</button>
+          <button type="button" data-range="1M" aria-pressed="true">1M</button>
+          <button type="button" data-range="3M" aria-pressed="false">3M</button>
+          <button type="button" data-range="6M" aria-pressed="false">6M</button>
+          <button type="button" data-range="1Y" aria-pressed="false">1Y</button>
+          <button type="button" data-range="5Y" aria-pressed="false">5Y</button>
+        </div>
+
         <div class="chart-shell" style="position:relative;flex:1;min-height:480px;">
           <div id="chart" role="img" aria-label="Market candlestick chart"></div>
           <div class="chart-empty" id="chartEmpty">
@@ -768,7 +822,7 @@
         </div>
 
         <div class="field">
-          <label id="intervalLabel">Interval</label>
+          <label id="intervalLabel">Forecast bar size</label>
           <div class="seg" role="group" aria-labelledby="intervalLabel">
             <button type="button" data-interval="15m" aria-pressed="false">15m</button>
             <button type="button" data-interval="30m" aria-pressed="false">30m</button>
@@ -846,7 +900,9 @@
     const state = {
       symbol: null,
       name: null,
-      interval: "1h",
+      displayRange: "1M",
+      chartInterval: "1h",
+      interval: "1h", // forecast bar size
       horizon: 24,
       bars: [],
       prediction: null,
@@ -862,6 +918,10 @@
     const modelKeyEl = $("modelKey");
 
     const INTERVAL_HOURS = { "15m": 0.25, "30m": 0.5, "1h": 1 };
+    const RANGE_LABELS = {
+      "1D": "1 day", "5D": "5 days", "1W": "1 week", "1M": "1 month",
+      "3M": "3 months", "6M": "6 months", "1Y": "1 year", "5Y": "5 years",
+    };
 
     function predLen() {
       return Math.round(state.horizon / INTERVAL_HOURS[state.interval]);
@@ -990,15 +1050,17 @@
 
     async function loadChart() {
       if (!state.symbol) return;
-      setLoading(true, `Loading ${state.symbol}…`);
+      setLoading(true, `Loading ${state.symbol} · ${state.displayRange}…`);
       setStatus(`Loading ${state.symbol}`, "busy");
       $("predictBtn").disabled = true;
       $("predictBtnMobile").disabled = true;
       showRailError("");
       try {
-        const lookback = Math.max(Number(lookbackEl.value), 256);
-        const data = await api(`/api/ohlcv?symbol=${encodeURIComponent(state.symbol)}&interval=${state.interval}&lookback=${lookback}`);
+        const data = await api(
+          `/api/ohlcv?symbol=${encodeURIComponent(state.symbol)}&range=${encodeURIComponent(state.displayRange)}`
+        );
         state.bars = data.bars;
+        state.chartInterval = data.interval || state.chartInterval;
         state.meta = data.meta || {};
         if (state.meta.name) state.name = state.meta.name;
         updateInstrumentHeader();
@@ -1006,7 +1068,8 @@
         $("canvas").classList.remove("morph-in");
         void $("canvas").offsetWidth;
         $("canvas").classList.add("morph-in");
-        setStatus(`${state.symbol} · ${state.bars.length} bars`, "ready");
+        const rangeLabel = RANGE_LABELS[state.displayRange] || state.displayRange;
+        setStatus(`${state.symbol} · ${rangeLabel} · ${state.bars.length} bars`, "ready");
         $("predictBtn").disabled = false;
         $("predictBtnMobile").disabled = false;
         $("tableToggle").hidden = false;
@@ -1040,7 +1103,8 @@
         chEl.textContent = `${ch >= 0 ? "+" : ""}${ch.toFixed(2)}%`;
         chEl.className = "inst-change " + (ch >= 0 ? "up" : "down");
       }
-      $("instMeta").textContent = `${state.interval} · lookback ${lookbackEl.value} · as of ${formatTs(last.timestamp)}`;
+      const rangeLabel = RANGE_LABELS[state.displayRange] || state.displayRange;
+      $("instMeta").textContent = `${rangeLabel} · ${state.chartInterval} bars · as of ${formatTs(last.timestamp)}`;
     }
 
     function formatPrice(v) {
@@ -1058,8 +1122,11 @@
     function formatTickLabel(ts) {
       try {
         const d = new Date(ts);
-        const interval = state.interval;
-        if (interval === "1h") {
+        const interval = state.prediction ? state.interval : state.chartInterval;
+        if (interval === "1d" || interval === "1wk") {
+          return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: interval === "1wk" ? "2-digit" : undefined });
+        }
+        if (interval === "1h" || interval === "30m") {
           return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" });
         }
         return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -1067,10 +1134,17 @@
     }
 
     function visibleHistoryBars() {
-      // Prefer the lookback window so candles stay dense; keep a little extra context.
-      const lb = Number(lookbackEl.value) || 168;
-      const want = Math.min(state.bars.length, Math.max(lb, Math.min(200, lb + 24)));
-      return state.bars.slice(-want);
+      // Display range already scopes bars; when forecasting, show the model lookback window.
+      if (state.prediction) {
+        const lb = Number(lookbackEl.value) || 168;
+        const want = Math.min(state.bars.length, Math.max(lb, Math.min(220, lb + 24)));
+        return state.bars.slice(-want);
+      }
+      // Cap very dense intraday windows for readability.
+      const maxBars = { "1D": 120, "5D": 200, "1W": 200, "1M": 220, "3M": 120, "6M": 180, "1Y": 260, "5Y": 280 };
+      const cap = maxBars[state.displayRange] || 220;
+      if (state.bars.length <= cap) return state.bars;
+      return state.bars.slice(-cap);
     }
 
     function renderChart() {
@@ -1352,14 +1426,28 @@
     });
 
     document.querySelectorAll("[data-interval]").forEach(btn => {
-      btn.addEventListener("click", async () => {
+      btn.addEventListener("click", () => {
         document.querySelectorAll("[data-interval]").forEach(b => b.setAttribute("aria-pressed", "false"));
         btn.setAttribute("aria-pressed", "true");
         state.interval = btn.dataset.interval;
+        // Forecast interval only — chart display stays on the selected range.
+        if (state.prediction) {
+          state.prediction = null;
+          $("clearBtn").hidden = true;
+          $("disclaimer").textContent = "";
+          renderChart();
+        }
+        updatePredChip();
+        persist();
+      });
+    });
+
+    document.querySelectorAll("[data-range]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        setDisplayRange(btn.dataset.range);
         state.prediction = null;
         $("clearBtn").hidden = true;
         $("disclaimer").textContent = "";
-        updatePredChip();
         persist();
         if (state.symbol) await loadChart();
       });
@@ -1368,6 +1456,7 @@
     lookbackEl.addEventListener("input", () => {
       $("lookbackVal").textContent = lookbackEl.value;
       updateInstrumentHeader();
+      if (state.bars.length) renderChart();
       persist();
     });
     $("temperature").addEventListener("input", () => { $("tempVal").textContent = Number($("temperature").value).toFixed(2); persist(); });
@@ -1407,6 +1496,12 @@
       state.interval = iv;
       document.querySelectorAll("[data-interval]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.interval === iv)));
     }
+    function setDisplayRange(range) {
+      state.displayRange = range;
+      document.querySelectorAll("[data-range]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b.dataset.range === range))
+      );
+    }
 
     async function runPredict() {
       if (!state.symbol) return;
@@ -1435,21 +1530,19 @@
       try {
         const data = await api("/api/predict", { method: "POST", body: JSON.stringify(body) });
         state.prediction = data.prediction;
+        // Show lookback + forecast at the forecast interval for a continuous overlay.
         if (data.history && data.history.length) {
-          // Keep wider chart context if we already have it; else use returned history
-          if (!state.bars.length || state.bars.length < data.history.length) {
-            state.bars = data.history;
-          }
+          state.bars = data.history;
+          state.chartInterval = data.interval || state.interval;
         }
         renderChart();
-        // Forecast sash feel: brief dim then restore
         $("chart").style.opacity = "0.88";
         requestAnimationFrame(() => {
           setTimeout(() => { $("chart").style.opacity = "1"; }, 40);
         });
         $("clearBtn").hidden = false;
         $("disclaimer").textContent = data.disclaimer || "Model-generated forecast. Not financial advice.";
-        setStatus(`Forecast · ${data.pred_len} candles · ${data.model_key}`, "ready");
+        setStatus(`Forecast · ${data.pred_len} candles · ${data.model_key} · ${data.interval}`, "ready");
         $("modelStatus").textContent = `${data.model_key} ready`;
         persist();
       } catch (err) {
@@ -1469,18 +1562,19 @@
 
     $("predictBtn").addEventListener("click", runPredict);
     $("predictBtnMobile").addEventListener("click", runPredict);
-    $("clearBtn").addEventListener("click", () => {
+    $("clearBtn").addEventListener("click", async () => {
       state.prediction = null;
-      renderChart();
       $("clearBtn").hidden = true;
       $("disclaimer").textContent = "";
-      setStatus(`${state.symbol} · ${state.bars.length} bars`, "ready");
+      if (state.symbol) await loadChart();
+      else renderChart();
     });
 
     function persist() {
       const payload = {
         symbol: state.symbol,
         name: state.name,
+        displayRange: state.displayRange,
         interval: state.interval,
         horizon: state.horizon,
         lookback: lookbackEl.value,
@@ -1503,6 +1597,7 @@
 
     function applyParamDefaults(d) {
       if (!d) return;
+      if (d.displayRange || d.display_range) setDisplayRange(d.displayRange || d.display_range);
       if (d.interval) setIntervalSeg(d.interval);
       if (d.horizon_hours != null) setHorizon(Number(d.horizon_hours));
       else if (d.horizon != null) setHorizon(Number(d.horizon));
