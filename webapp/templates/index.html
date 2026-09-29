@@ -781,8 +781,8 @@
         <div class="field">
           <label for="modelKey">Model</label>
           <select id="modelKey">
-            <option value="kronos-mini">Kronos-mini · 4.1M</option>
-            <option value="kronos-small" selected>Kronos-small · 24.7M</option>
+            <option value="kronos-mini" selected>Kronos-mini · 4.1M</option>
+            <option value="kronos-small">Kronos-small · 24.7M</option>
             <option value="kronos-base">Kronos-base · 102.3M</option>
           </select>
         </div>
@@ -843,7 +843,7 @@
       bars: [],
       prediction: null,
       meta: {},
-      contextLength: 512,
+      contextLength: 2048,
       searching: false,
     };
 
@@ -1345,7 +1345,11 @@
       if (d.horizon_hours != null) setHorizon(Number(d.horizon_hours));
       else if (d.horizon != null) setHorizon(Number(d.horizon));
       if (d.lookback != null) { lookbackEl.value = d.lookback; $("lookbackVal").textContent = d.lookback; }
-      if (d.model_key) modelKeyEl.value = d.model_key;
+      if (d.model_key) {
+        modelKeyEl.value = d.model_key;
+        const ctxMap = { "kronos-mini": 2048, "kronos-small": 512, "kronos-base": 512 };
+        state.contextLength = ctxMap[modelKeyEl.value] || 512;
+      }
       if (d.temperature != null) { $("temperature").value = d.temperature; $("tempVal").textContent = Number(d.temperature).toFixed(2); }
       if (d.top_p != null) { $("topP").value = d.top_p; $("topPVal").textContent = Number(d.top_p).toFixed(2); }
       if (d.sample_count != null) $("sampleCount").value = d.sample_count;

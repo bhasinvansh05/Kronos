@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-09-29T00:00:08.292269+00:00",
+  "model_key": "kronos-mini",
+  "device": "cpu",
+  "interval": "1h",
+  "horizon_hours": 24,
+  "lookback": 168,
+  "temperature": 0.8,
+  "top_p": 0.9,
+  "sample_count": 1,
+  "metrics": {
+    "mape": 1.078531291846876,
+    "mae": 553.5080814361572,
+    "directional_accuracy": 0.5625,
+    "n_evals": 8
+  },
+  "tickers": [
+    "AAPL",
+    "BTC-USD"
+  ],
+  "source": "backtest_tune.py"
+}

@@ -71,6 +71,20 @@ AVAILABLE_MODELS = {
 INTERVAL_HOURS = {"15m": 0.25, "30m": 0.5, "1h": 1.0}
 YF_PERIOD = {"15m": "60d", "30m": "60d", "1h": "730d"}
 
+# Hardcoded fallbacks when backtest_results/best_params.json is absent.
+HARDCODED_DEFAULTS = {
+    "model_key": "kronos-mini",
+    "device": "cpu",
+    "interval": "1h",
+    "horizon_hours": 24,
+    "lookback": 168,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "sample_count": 1,
+}
+
+BEST_PARAMS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backtest_results", "best_params.json")
+
 
 def _bar_to_dict(ts: pd.Timestamp, row: pd.Series) -> dict[str, Any]:
     return {
@@ -162,6 +176,21 @@ def index():
     return render_template("index.html")
 
 
+def load_best_params() -> dict[str, Any] | None:
+    """Load tuned defaults from backtest_results/best_params.json if present."""
+    try:
+        if not os.path.isfile(BEST_PARAMS_PATH):
+            return None
+        with open(BEST_PARAMS_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return None
+        return data
+    except Exception as exc:
+        print(f"Failed to read best_params.json: {exc}")
+        return None
+
+
 @app.route("/api/health")
 def health():
     yf_ok = True
@@ -179,6 +208,34 @@ def health():
             "model_key": loaded_model_key,
         }
     )
+
+
+@app.route("/api/defaults")
+def defaults():
+    """Return sampling/forecast defaults (tuned best_params.json or hardcoded)."""
+    tuned = load_best_params()
+    out = dict(HARDCODED_DEFAULTS)
+    source = "hardcoded"
+    if tuned:
+        source = "best_params"
+        for src_key, dst_key in (
+            ("model_key", "model_key"),
+            ("device", "device"),
+            ("interval", "interval"),
+            ("horizon_hours", "horizon_hours"),
+            ("lookback", "lookback"),
+            ("temperature", "temperature"),
+            ("top_p", "top_p"),
+            ("sample_count", "sample_count"),
+        ):
+            if src_key in tuned and tuned[src_key] is not None:
+                out[dst_key] = tuned[src_key]
+        if "metrics" in tuned:
+            out["metrics"] = tuned["metrics"]
+        if "generated_at" in tuned:
+            out["generated_at"] = tuned["generated_at"]
+    out["source"] = source
+    return jsonify(out)
 
 
 @app.route("/api/models")
@@ -394,15 +451,20 @@ def predict():
     global predictor, loaded_model_key, loaded_device
 
     data = request.get_json() or {}
+    tuned = load_best_params() or {}
+    defaults = {**HARDCODED_DEFAULTS, **{k: tuned[k] for k in HARDCODED_DEFAULTS if k in tuned}}
+
     symbol = (data.get("symbol") or "").strip().upper()
-    interval = (data.get("interval") or "1h").strip()
-    horizon_hours = int(data.get("horizon_hours", 24))
-    lookback = int(data.get("lookback", 168))
-    model_key = data.get("model_key", "kronos-small")
-    temperature = float(data.get("temperature", 0.8))
-    top_p = float(data.get("top_p", 0.9))
-    sample_count = int(data.get("sample_count", 1))
-    device = data.get("device") or loaded_device or ("cuda" if _cuda_available() else "cpu")
+    interval = (data.get("interval") or defaults["interval"]).strip()
+    horizon_hours = int(data.get("horizon_hours", defaults["horizon_hours"]))
+    lookback = int(data.get("lookback", defaults["lookback"]))
+    model_key = data.get("model_key", defaults["model_key"])
+    temperature = float(data.get("temperature", defaults["temperature"]))
+    top_p = float(data.get("top_p", defaults["top_p"]))
+    sample_count = int(data.get("sample_count", defaults["sample_count"]))
+    device = data.get("device") or loaded_device or defaults.get("device") or (
+        "cuda" if _cuda_available() else "cpu"
+    )
 
     if not symbol:
         return jsonify({"error": "symbol is required"}), 400
