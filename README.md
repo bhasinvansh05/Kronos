@@ -36,6 +36,11 @@ python run.py
 # → http://localhost:7070
 ```
 
+### Public hosting (phone-friendly)
+
+GitHub Student Pack → Heroku Docker deploy: see
+[`docs/MOBILE_DEPLOY_HEROKU.md`](./docs/MOBILE_DEPLOY_HEROKU.md).
+
 1. Search a ticker (`AAPL`, `MSFT`, `SPY`, `BTC-USD`, …)
 2. Pick a display range: **1D · 5D · 1W · 1M · 3M · 6M · 1Y · 5Y**
 3. Set forecast horizon (24h / 48h) and bar size (15m / 30m / 1h)

@@ -9,3 +9,4 @@ einops==0.8.1
 safetensors>=0.6.2
 tqdm>=4.67.0
 yfinance>=0.2.40
+gunicorn==23.0.0
