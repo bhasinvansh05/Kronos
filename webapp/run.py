@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Start the Kronos market foresight webapp."""
+"""Start Kronos Market Foresight (Vansh Bhasin / bhasinvansh05)."""
 import os
 import sys
 

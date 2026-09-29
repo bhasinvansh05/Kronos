@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kronos — Market Foresight</title>
+  <title>Kronos Market Foresight · Vansh Bhasin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
@@ -110,6 +110,40 @@
       margin-top: 2px;
       letter-spacing: 0.02em;
     }
+
+    .brand-owner {
+      font-size: 11px;
+      color: var(--ink-tertiary);
+      margin-top: 2px;
+    }
+
+    .brand-owner a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .brand-owner a:hover { text-decoration: underline; }
+
+    .site-footer {
+      margin-top: 20px;
+      padding: 14px 4px 8px;
+      font-size: 12px;
+      color: var(--ink-tertiary);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .site-footer a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .site-footer a:hover { text-decoration: underline; }
 
     .search-wrap {
       position: relative;
@@ -741,7 +775,8 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">KRONOS</div>
-        <div class="brand-sub">Financial foresight</div>
+        <div class="brand-sub">Market foresight</div>
+        <div class="brand-owner">by <a href="https://github.com/bhasinvansh05" target="_blank" rel="noopener">Vansh Bhasin</a></div>
       </div>
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -894,6 +929,11 @@
     <div class="mobile-cta">
       <button type="button" class="btn-primary" id="predictBtnMobile" disabled>Predict Next Hours</button>
     </div>
+
+    <footer class="site-footer">
+      <span>© 2026 <a href="https://github.com/bhasinvansh05" target="_blank" rel="noopener">Vansh Bhasin</a> · Kronos Market Foresight</span>
+      <span>Model-generated forecasts · Not financial advice · <a href="https://github.com/bhasinvansh05/Kronos" target="_blank" rel="noopener">Source</a></span>
+    </footer>
   </div>
 
   <script>

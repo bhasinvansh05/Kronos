@@ -1,5 +1,8 @@
 # Kronos Market Foresight Webapp
 
+**Author:** [Vansh Bhasin](https://github.com/bhasinvansh05)  
+Part of [bhasinvansh05/Kronos](https://github.com/bhasinvansh05/Kronos)
+
 Live ticker charts + Kronos 24–48h forecasts.
 
 ## Run
@@ -51,9 +54,13 @@ Outputs:
 
 - `GET /api/health`
 - `GET /api/defaults` — tuned or hardcoded forecast defaults
+- `GET /api/ranges` — display range catalog (1D…5Y)
 - `GET /api/models`
 - `POST /api/model/load`
 - `GET /api/tickers/search?q=`
-- `GET /api/ranges` — display range catalog (1D…5Y)
 - `GET /api/ohlcv?symbol=&range=1M` (or `interval` + `lookback`)
 - `POST /api/predict`
+
+## License & ownership
+
+See root [`LICENSE`](../LICENSE), [`NOTICE`](../NOTICE), and [`OWNER.md`](../OWNER.md).

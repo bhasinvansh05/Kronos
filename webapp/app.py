@@ -1,6 +1,7 @@
 """
 Kronos Market Foresight — Flask backend.
 
+Author: Vansh Bhasin (https://github.com/bhasinvansh05)
 Pulls live OHLCV via yfinance and forecasts the next 24–48 hours with Kronos.
 """
 from __future__ import annotations
