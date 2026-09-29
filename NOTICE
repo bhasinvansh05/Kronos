@@ -1,0 +1,27 @@
+# NOTICE
+
+This repository is maintained by **Vansh Bhasin** (`@bhasinvansh05`).
+
+## Product
+
+**Kronos Market Foresight** — a personal web application for live market charts
+and short-horizon forecasts. Primary entrypoint: `webapp/`.
+
+## Upstream model
+
+The Kronos foundation-model architecture and pretrained weights originate from
+the open-source Kronos project by ShiYu / NeoQuasar (MIT License):
+
+- Upstream repository: https://github.com/shiyu-coder/Kronos
+- Paper: https://arxiv.org/abs/2508.02739
+- Weights on Hugging Face: https://huggingface.co/NeoQuasar
+
+Model checkpoint IDs (e.g. `NeoQuasar/Kronos-mini`) are referenced as published
+by the upstream authors. This fork’s application layer, UI, market-data
+integration, backtesting tooling, and documentation are original work by
+Vansh Bhasin unless otherwise noted.
+
+## Contact
+
+- GitHub: https://github.com/bhasinvansh05
+- Repository: https://github.com/bhasinvansh05/Kronos
