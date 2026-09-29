@@ -73,6 +73,8 @@
     }
 
     .topbar {
+      position: relative;
+      z-index: 50;
       display: flex;
       align-items: center;
       gap: 20px;
@@ -85,6 +87,8 @@
       box-shadow: var(--shadow-soft);
       margin-bottom: 16px;
       min-height: 56px;
+      /* Keep dropdown visible: do not clip overflowing suggestions */
+      overflow: visible;
     }
 
     .brand {
@@ -109,6 +113,7 @@
 
     .search-wrap {
       position: relative;
+      z-index: 60;
       flex: 1;
       max-width: 480px;
     }
@@ -145,7 +150,7 @@
 
     .suggestions {
       position: absolute;
-      z-index: 40;
+      z-index: 100;
       top: calc(100% + 6px);
       left: 0;
       right: 0;
@@ -235,6 +240,8 @@
     }
 
     .canvas, .rail {
+      position: relative;
+      z-index: 1;
       background: var(--bg-elevated);
       backdrop-filter: var(--blur-bar);
       -webkit-backdrop-filter: var(--blur-bar);
@@ -244,6 +251,7 @@
     }
 
     .canvas {
+      z-index: 1;
       padding: 18px 18px 12px;
       min-height: 620px;
       display: flex;
