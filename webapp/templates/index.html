@@ -1055,103 +1055,257 @@
       } catch { return ts; }
     }
 
+    function formatTickLabel(ts) {
+      try {
+        const d = new Date(ts);
+        const interval = state.interval;
+        if (interval === "1h") {
+          return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" });
+        }
+        return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      } catch { return String(ts); }
+    }
+
+    function visibleHistoryBars() {
+      // Prefer the lookback window so candles stay dense; keep a little extra context.
+      const lb = Number(lookbackEl.value) || 168;
+      const want = Math.min(state.bars.length, Math.max(lb, Math.min(200, lb + 24)));
+      return state.bars.slice(-want);
+    }
+
     function renderChart() {
       const empty = $("chartEmpty");
       const loading = $("chartLoading");
       if (empty) empty.hidden = true;
       if (loading) loading.hidden = true;
-      const hist = state.bars;
+      const hist = visibleHistoryBars();
       if (!hist.length) return;
 
-      const x = hist.map(b => b.timestamp);
+      const pred = state.prediction || [];
+      // Category axis packs bars edge-to-edge (no weekend/overnight gaps).
+      const labels = [
+        ...hist.map(b => formatTickLabel(b.timestamp)),
+        ...pred.map(b => formatTickLabel(b.timestamp)),
+      ];
+      // Unique keys for Plotly category axis (labels can repeat across days).
+      const xHist = hist.map((_, i) => `h${i}`);
+      const xPred = pred.map((_, i) => `p${i}`);
+      const xAll = [...xHist, ...xPred];
+      const labelByKey = {};
+      xHist.forEach((k, i) => { labelByKey[k] = labels[i]; });
+      xPred.forEach((k, i) => { labelByKey[k] = labels[hist.length + i]; });
+
+      const tickStep = Math.max(1, Math.round(xAll.length / 8));
+      const tickvals = [];
+      const ticktext = [];
+      for (let i = 0; i < xAll.length; i += tickStep) {
+        tickvals.push(xAll[i]);
+        ticktext.push(labelByKey[xAll[i]]);
+      }
+      if (xAll.length && tickvals[tickvals.length - 1] !== xAll[xAll.length - 1]) {
+        tickvals.push(xAll[xAll.length - 1]);
+        ticktext.push(labelByKey[xAll[xAll.length - 1]]);
+      }
+
+      const histVolColors = hist.map(b =>
+        b.close >= b.open ? "rgba(13,148,136,0.45)" : "rgba(225,29,72,0.40)"
+      );
+      const predVolColors = pred.map(b =>
+        b.close >= b.open ? "rgba(20,184,166,0.35)" : "rgba(15,118,110,0.30)"
+      );
+
       const traces = [
         {
           type: "candlestick",
           name: "History",
-          x,
+          x: xHist,
           open: hist.map(b => b.open),
           high: hist.map(b => b.high),
           low: hist.map(b => b.low),
           close: hist.map(b => b.close),
-          increasing: { line: { color: "#0D9488" }, fillcolor: "#0D9488" },
-          decreasing: { line: { color: "#E11D48" }, fillcolor: "#E11D48" },
+          customdata: hist.map(b => [formatTs(b.timestamp)]),
+          hovertemplate:
+            "<b>%{customdata[0]}</b><br>" +
+            "O %{open:.2f}  H %{high:.2f}<br>" +
+            "L %{low:.2f}  C %{close:.2f}" +
+            "<extra>History</extra>",
+          increasing: { line: { color: "#0F766E", width: 1 }, fillcolor: "#0D9488" },
+          decreasing: { line: { color: "#BE123C", width: 1 }, fillcolor: "#E11D48" },
+          whiskerwidth: 0.65,
+          xaxis: "x",
+          yaxis: "y",
+        },
+        {
+          type: "scatter",
+          name: "Close",
+          mode: "lines",
+          x: xHist,
+          y: hist.map(b => b.close),
+          line: { color: "rgba(15,23,42,0.50)", width: 1.75, shape: "linear" },
+          hoverinfo: "skip",
           xaxis: "x",
           yaxis: "y",
         },
         {
           type: "bar",
           name: "Volume",
-          x,
+          x: xHist,
           y: hist.map(b => b.volume),
-          marker: { color: "rgba(100,116,139,0.35)" },
+          marker: { color: histVolColors, line: { width: 0 } },
+          width: 0.9,
           xaxis: "x",
           yaxis: "y2",
-          hovertemplate: "%{y}<extra>Volume</extra>",
+          hovertemplate: "%{y:,.0f}<extra>Volume</extra>",
         },
       ];
 
       const shapes = [];
       const annotations = [];
 
-      if (state.prediction && state.prediction.length) {
-        const px = state.prediction.map(b => b.timestamp);
+      if (pred.length) {
+        // Bridge line: last history close → forecast closes for continuity.
+        const bridgeX = [xHist[xHist.length - 1], ...xPred];
+        const bridgeY = [hist[hist.length - 1].close, ...pred.map(b => b.close)];
+
         traces.push({
           type: "candlestick",
           name: "Forecast",
-          x: px,
-          open: state.prediction.map(b => b.open),
-          high: state.prediction.map(b => b.high),
-          low: state.prediction.map(b => b.low),
-          close: state.prediction.map(b => b.close),
-          increasing: { line: { color: "#14B8A6", width: 1.5 }, fillcolor: "rgba(20,184,166,0.25)" },
-          decreasing: { line: { color: "#0F766E", width: 1.5 }, fillcolor: "rgba(15,118,110,0.2)" },
-          opacity: 0.85,
+          x: xPred,
+          open: pred.map(b => b.open),
+          high: pred.map(b => b.high),
+          low: pred.map(b => b.low),
+          close: pred.map(b => b.close),
+          customdata: pred.map(b => [formatTs(b.timestamp)]),
+          hovertemplate:
+            "<b>Forecast · %{customdata[0]}</b><br>" +
+            "O %{open:.2f}  H %{high:.2f}<br>" +
+            "L %{low:.2f}  C %{close:.2f}" +
+            "<extra></extra>",
+          increasing: { line: { color: "#0F766E", width: 1.25 }, fillcolor: "rgba(20,184,166,0.55)" },
+          decreasing: { line: { color: "#115E59", width: 1.25 }, fillcolor: "rgba(15,118,110,0.40)" },
+          whiskerwidth: 0.65,
           xaxis: "x",
           yaxis: "y",
         });
-        const start = hist[hist.length - 1].timestamp;
-        const end = state.prediction[state.prediction.length - 1].timestamp;
+        traces.push({
+          type: "scatter",
+          name: "Forecast close",
+          mode: "lines",
+          x: bridgeX,
+          y: bridgeY,
+          line: { color: "#0F766E", width: 2.25, shape: "linear" },
+          hoverinfo: "skip",
+          xaxis: "x",
+          yaxis: "y",
+        });
+        traces.push({
+          type: "bar",
+          name: "Forecast vol",
+          x: xPred,
+          y: pred.map(b => b.volume),
+          marker: { color: predVolColors, line: { width: 0 } },
+          width: 0.9,
+          showlegend: false,
+          xaxis: "x",
+          yaxis: "y2",
+          hovertemplate: "%{y:,.0f}<extra>Forecast vol</extra>",
+        });
+
+        const startKey = xHist[xHist.length - 1];
+        const endKey = xPred[xPred.length - 1];
         shapes.push({
           type: "rect",
           xref: "x", yref: "paper",
-          x0: start, x1: end,
+          x0: startKey, x1: endKey,
           y0: 0, y1: 1,
-          fillcolor: "rgba(20,184,166,0.10)",
+          fillcolor: "rgba(20, 184, 166, 0.09)",
           line: { width: 0 },
           layer: "below",
         });
         shapes.push({
           type: "line",
           xref: "x", yref: "paper",
-          x0: start, x1: start,
+          x0: startKey, x1: startKey,
           y0: 0, y1: 1,
           line: { color: "#0F766E", width: 1.5, dash: "dash" },
         });
         annotations.push({
-          x: start, y: 1, xref: "x", yref: "paper",
+          x: startKey, y: 1, xref: "x", yref: "paper",
           text: "Forecast start",
           showarrow: false,
           yanchor: "bottom",
           font: { size: 11, color: "#0F766E", family: "IBM Plex Sans" },
           xanchor: "left",
+          xshift: 4,
         });
       }
 
+      // Price padding so candles aren't clipped against the frame.
+      const allPrices = [
+        ...hist.flatMap(b => [b.high, b.low]),
+        ...pred.flatMap(b => [b.high, b.low]),
+      ].filter(v => v != null && !Number.isNaN(v));
+      const pMin = Math.min(...allPrices);
+      const pMax = Math.max(...allPrices);
+      const pad = (pMax - pMin) * 0.06 || pMax * 0.01;
+
       const layout = {
-        margin: { l: 48, r: 16, t: 16, b: 40 },
+        margin: { l: 56, r: 18, t: 28, b: 48 },
         paper_bgcolor: "#F7F9FB",
         plot_bgcolor: "#F7F9FB",
         showlegend: true,
-        legend: { orientation: "h", y: 1.08, font: { family: "IBM Plex Sans", size: 12 } },
-        xaxis: { rangeslider: { visible: false }, type: "date", gridcolor: "rgba(15,23,42,0.06)", zeroline: false },
-        yaxis: { domain: [0.28, 1], gridcolor: "rgba(15,23,42,0.06)", zeroline: false, title: { text: "", font: { size: 11 } } },
-        yaxis2: { domain: [0, 0.2], gridcolor: "rgba(15,23,42,0.04)", showticklabels: false },
+        legend: {
+          orientation: "h",
+          y: 1.12,
+          x: 0,
+          font: { family: "IBM Plex Sans", size: 12, color: "#475569" },
+          bgcolor: "rgba(0,0,0,0)",
+        },
+        xaxis: {
+          type: "category",
+          categoryorder: "array",
+          categoryarray: xAll,
+          tickmode: "array",
+          tickvals,
+          ticktext,
+          rangeslider: { visible: false },
+          showgrid: true,
+          gridcolor: "rgba(15,23,42,0.06)",
+          zeroline: false,
+          tickangle: 0,
+          tickfont: { family: "IBM Plex Mono", size: 11, color: "#64748B" },
+          showline: false,
+          automargin: true,
+        },
+        yaxis: {
+          domain: [0.24, 1],
+          gridcolor: "rgba(15,23,42,0.08)",
+          zeroline: false,
+          tickfont: { family: "IBM Plex Mono", size: 11, color: "#475569" },
+          range: [pMin - pad, pMax + pad],
+          fixedrange: false,
+          separatethousands: true,
+          side: "right",
+        },
+        yaxis2: {
+          domain: [0, 0.18],
+          gridcolor: "rgba(15,23,42,0.04)",
+          showticklabels: false,
+          zeroline: false,
+          fixedrange: true,
+        },
         shapes,
         annotations,
         font: { family: "IBM Plex Sans", color: "#0F172A" },
         hovermode: "x unified",
+        hoverlabel: {
+          bgcolor: "#0F172A",
+          bordercolor: "#0F172A",
+          font: { family: "IBM Plex Sans", size: 12, color: "#F8FAFC" },
+        },
         dragmode: "pan",
-        height: Math.max(480, ($("chart").clientHeight || 480)),
+        bargap: 0.08,
+        height: Math.max(500, ($("chart").clientHeight || 500)),
       };
 
       const config = { responsive: true, displayModeBar: false, scrollZoom: true };
@@ -1164,7 +1318,7 @@
 
       $("chart").setAttribute(
         "aria-label",
-        `${state.symbol} ${state.interval} chart, last close ${formatPrice(hist[hist.length-1].close)}${state.prediction ? ", with model forecast" : ""}`
+        `${state.symbol} ${state.interval} chart, last close ${formatPrice(hist[hist.length-1].close)}${pred.length ? ", with model forecast" : ""}`
       );
       buildTable();
     }
