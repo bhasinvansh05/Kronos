@@ -128,9 +128,10 @@
     }
 
     .shell {
+      width: 100%;
       max-width: 1440px;
       margin: 0 auto;
-      padding: 16px 20px 40px;
+      padding: 16px clamp(12px, 2.5vw, 20px) 40px;
     }
 
     .topbar {
@@ -377,6 +378,8 @@
     .canvas, .rail {
       position: relative;
       z-index: 1;
+      min-width: 0;
+      width: 100%;
       background: var(--bg-elevated);
       backdrop-filter: var(--blur-bar);
       -webkit-backdrop-filter: var(--blur-bar);
@@ -387,7 +390,7 @@
 
     .canvas {
       z-index: 1;
-      padding: 18px 18px 12px;
+      padding: 18px clamp(10px, 2vw, 18px) 12px;
       min-height: 620px;
       display: flex;
       flex-direction: column;
@@ -541,6 +544,8 @@
 
     .chart-shell {
       flex: 1;
+      width: 100%;
+      min-width: 0;
       min-height: 480px;
       background: var(--bg-chart);
       border-radius: 12px;
@@ -550,9 +555,18 @@
     }
 
     #chart {
-      width: 100%;
+      width: 100% !important;
+      max-width: 100%;
       height: 100%;
       min-height: 480px;
+      min-width: 0;
+    }
+
+    #chart .js-plotly-plot,
+    #chart .plot-container,
+    #chart .svg-container {
+      width: 100% !important;
+      max-width: 100% !important;
     }
 
     .chart-empty, .chart-loading {
@@ -920,20 +934,30 @@
 
     @media (max-width: 960px) {
       /* Clearance so the fixed Predict bar never covers chart axes/volume */
-      .shell { padding: 12px 12px calc(88px + env(safe-area-inset-bottom, 0px)); }
-      .layout { grid-template-columns: 1fr; gap: 12px; }
-      .rail { position: static; order: 2; padding: 16px; }
+      .shell {
+        width: 100%;
+        padding:
+          max(10px, env(safe-area-inset-top, 0px))
+          max(10px, env(safe-area-inset-right, 0px))
+          calc(88px + env(safe-area-inset-bottom, 0px))
+          max(10px, env(safe-area-inset-left, 0px));
+      }
+      .layout { grid-template-columns: minmax(0, 1fr); gap: 12px; width: 100%; }
+      .rail { position: static; order: 2; padding: 16px; max-width: 100%; }
       .canvas {
         min-height: auto;
         order: 1;
         padding: 12px 10px 8px;
+        max-width: 100%;
       }
       .chart-shell {
+        width: 100%;
         min-height: min(48dvh, 420px);
         touch-action: none;
         overflow: hidden;
       }
       #chart {
+        width: 100% !important;
         min-height: min(48dvh, 420px);
         touch-action: none;
       }
@@ -1261,12 +1285,41 @@
     });
 
     let resizeTimer = null;
-    window.addEventListener("resize", () => {
+    let lastChartWidth = 0;
+    function scheduleChartAdapt() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (state.bars.length) renderChart();
-      }, 160);
+        if (!state.bars.length) return;
+        const w = chartHostWidth();
+        // Re-render when width class changes enough to need new tick density.
+        if (Math.abs(w - lastChartWidth) >= 40) {
+          lastChartWidth = w;
+          renderChart();
+        } else {
+          try { Plotly.Plots.resize("chart"); } catch (_) {}
+        }
+      }, 120);
+    }
+    window.addEventListener("resize", scheduleChartAdapt);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(scheduleChartAdapt, 80);
     });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", scheduleChartAdapt);
+    }
+    // Observe the chart host so iPhone emulator / split-view width changes apply.
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(() => scheduleChartAdapt());
+      const bootRo = () => {
+        const host = $("chartShell");
+        if (host) ro.observe(host);
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", bootRo);
+      } else {
+        bootRo();
+      }
+    }
     const RANGE_LABELS = {
       "1D": "1 day", "5D": "5 days", "1W": "1 week", "1M": "1 month",
       "3M": "3 months", "6M": "6 months", "1Y": "1 year", "5Y": "5 years",
@@ -1472,6 +1525,24 @@
       return window.matchMedia("(max-width: 960px)").matches;
     }
 
+    function chartHostWidth() {
+      const el = $("chartShell") || $("chart");
+      const w = el ? el.clientWidth : 0;
+      return w || Math.min(window.innerWidth, 390);
+    }
+
+    /** Adapt tick density / compact labels from actual chart width, not only CSS breakpoint. */
+    function chartWidthProfile() {
+      const w = chartHostWidth();
+      const mobile = isMobileViewport() || w < 720;
+      let tickTarget = 8;
+      if (w < 340) tickTarget = 3;
+      else if (w < 420) tickTarget = 4;
+      else if (w < 640) tickTarget = 5;
+      else if (w < 900) tickTarget = 7;
+      return { width: w, mobile, compact: w < 720, tickTarget };
+    }
+
     function formatTickLabel(ts, { compact = false } = {}) {
       try {
         const d = new Date(ts);
@@ -1506,9 +1577,12 @@
         const want = Math.min(state.bars.length, Math.max(lb, Math.min(mobileCap, lb + 24)));
         return state.bars.slice(-want);
       }
-      // Cap very dense intraday windows for readability (tighter on phones).
-      const narrow = isMobileViewport();
-      const maxBars = narrow
+      // Cap very dense intraday windows from actual chart width (iPhone SE → desktop).
+      const { width } = chartWidthProfile();
+      const narrow = width < 720;
+      const maxBars = width < 360
+        ? { "1D": 48, "5D": 56, "1W": 64, "1M": 72, "3M": 60, "6M": 72, "1Y": 100, "5Y": 120 }
+        : narrow
         ? { "1D": 64, "5D": 72, "1W": 80, "1M": 90, "3M": 72, "6M": 90, "1Y": 120, "5Y": 140 }
         : { "1D": 120, "5D": 200, "1W": 200, "1M": 220, "3M": 120, "6M": 180, "1Y": 260, "5Y": 280 };
       const cap = maxBars[state.displayRange] || 220;
@@ -1546,16 +1620,18 @@
       }
       const el = $("chart");
       const h = el ? el.clientHeight : 0;
-      const mobile = isMobileViewport();
+      const { width, mobile } = chartWidthProfile();
       if (mobile) {
-        const target = Math.round(Math.min(window.innerHeight * 0.44, 400));
-        return Math.max(320, h || target);
+        // Height scales a bit with width so iPhone SE vs Pro Max stay balanced.
+        const ratio = width < 360 ? 0.48 : 0.44;
+        const target = Math.round(Math.min(window.innerHeight * ratio, width < 360 ? 360 : 400));
+        return Math.max(300, h || target);
       }
       return Math.max(500, h || 520);
     }
 
-    function buildAxisTicks(xAll, labelByKey, mobile) {
-      const target = mobile ? 4 : 8;
+    function buildAxisTicks(xAll, labelByKey, tickTarget) {
+      const target = Math.max(3, tickTarget || 8);
       const tickStep = Math.max(1, Math.ceil(xAll.length / target));
       const tickvals = [];
       const ticktext = [];
@@ -1585,11 +1661,12 @@
       if (!hist.length) return;
 
       const pred = state.prediction || [];
-      const mobile = isMobileViewport();
+      const profile = chartWidthProfile();
+      const mobile = profile.mobile;
       // Category axis packs bars edge-to-edge (no weekend/overnight gaps).
       const labels = [
-        ...hist.map(b => formatTickLabel(b.timestamp, { compact: mobile })),
-        ...pred.map(b => formatTickLabel(b.timestamp, { compact: mobile })),
+        ...hist.map(b => formatTickLabel(b.timestamp, { compact: profile.compact })),
+        ...pred.map(b => formatTickLabel(b.timestamp, { compact: profile.compact })),
       ];
       // Unique keys for Plotly category axis (labels can repeat across days).
       const xHist = hist.map((_, i) => `h${i}`);
@@ -1599,7 +1676,7 @@
       xHist.forEach((k, i) => { labelByKey[k] = labels[i]; });
       xPred.forEach((k, i) => { labelByKey[k] = labels[hist.length + i]; });
 
-      const { tickvals, ticktext } = buildAxisTicks(xAll, labelByKey, mobile);
+      const { tickvals, ticktext } = buildAxisTicks(xAll, labelByKey, profile.tickTarget);
 
       const theme = chartTheme();
       const histVolColors = hist.map(b =>
@@ -1816,6 +1893,7 @@
         },
         dragmode: "pan",
         bargap: 0.08,
+        autosize: true,
         height: chartHeight(),
       };
 
@@ -1830,12 +1908,11 @@
       };
       try {
         Plotly.react("chart", traces, layout, config);
-        // Ensure layout matches the shell after fonts/CSS settle on phones.
-        if (mobile) {
-          requestAnimationFrame(() => {
-            try { Plotly.Plots.resize("chart"); } catch (_) {}
-          });
-        }
+        lastChartWidth = chartHostWidth();
+        // Match the live container width after paint (iPhone / rotate / DevTools).
+        requestAnimationFrame(() => {
+          try { Plotly.Plots.resize("chart"); } catch (_) {}
+        });
       } catch (err) {
         console.error("Plotly render failed", err);
         throw err;
