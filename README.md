@@ -38,8 +38,11 @@ python run.py
 
 ### Public hosting (phone-friendly)
 
-GitHub Student Pack → Heroku Docker deploy: see
+GitHub Student Pack → Heroku: see
 [`docs/MOBILE_DEPLOY_HEROKU.md`](./docs/MOBILE_DEPLOY_HEROKU.md).
+
+Heroku needs **Python 3.12** (see `.python-version`). Deploy the branch that
+contains the webapp, then **Deploy Branch** again after pulling latest.
 
 1. Search a ticker (`AAPL`, `MSFT`, `SPY`, `BTC-USD`, …)
 2. Pick a display range: **1D · 5D · 1W · 1M · 3M · 6M · 1Y · 5Y**

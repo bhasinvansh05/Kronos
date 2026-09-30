@@ -142,10 +142,16 @@ Torch needs RAM. Eco (512MB) often crashes.
 
 # PART E — Common failures & exact fixes
 
-### E1. Build failed: out of space / slug too large
-- You must deploy via **Docker / container** (`Dockerfile` + `heroku.yml` in repo).
-- Re-check Deploy method isn’t a classic Python buildpack-only deploy.
-- Redeploy branch after confirming those files exist on GitHub.
+### E1. Build failed on Python 3.14 / pandas compile error
+Heroku’s Python buildpack must use **3.12**. This repo includes:
+- `.python-version` → `3.12`
+- root `requirements.txt` tuned for the webapp + CPU torch
+
+**Fix:** make sure you deploy the branch that has those files, then **Deploy Branch** again.
+
+### E1b. Build failed: out of space / slug too large
+- Prefer **container** stack: Settings → note stack; use Docker (`Dockerfile` + `heroku.yml`).
+- Or stay on Python buildpack with Kronos-mini only and the pinned CPU torch requirements.
 
 ### E2. App crashes / R14 memory errors (in Logs)
 1. App → **More** → **View logs** (or **Activity**).
