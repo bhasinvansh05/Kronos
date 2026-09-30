@@ -1,0 +1,3 @@
+# Optional local/research extras (not used by Heroku webapp deploy)
+matplotlib==3.9.3
+plotly>=5.17.0

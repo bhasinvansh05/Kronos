@@ -2,4 +2,4 @@ build:
   docker:
     web: Dockerfile
 run:
-  web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 180
+  web: gunicorn app:app --bind 0.0.0.0:$PORT --chdir /app/webapp --workers 1 --threads 2 --timeout 180

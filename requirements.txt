@@ -1,10 +1,15 @@
-numpy
-pandas
-torch>=2.0.0
+# Heroku / production webapp dependencies (Python 3.12)
+# CPU PyTorch index keeps the slug smaller than the default CUDA wheels.
+--extra-index-url https://download.pytorch.org/whl/cpu
 
+numpy>=1.26.0,<3
+pandas>=2.2.0,<3
+torch==2.4.1
 einops==0.8.1
 huggingface_hub==0.33.1
-matplotlib==3.9.3
-pandas==2.2.2
-tqdm==4.67.1
-safetensors==0.6.2
+safetensors>=0.6.2
+tqdm>=4.67.0
+flask>=2.3.0
+flask-cors>=4.0.0
+yfinance>=0.2.40
+gunicorn==23.0.0
