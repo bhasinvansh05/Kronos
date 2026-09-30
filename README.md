@@ -1,7 +1,8 @@
 # Kronos Market Foresight
 
 **Owner:** [Vansh Bhasin](https://github.com/bhasinvansh05) · York University  
-**Repo:** [bhasinvansh05/Kronos](https://github.com/bhasinvansh05/Kronos)
+**Repo:** [bhasinvansh05/Kronos](https://github.com/bhasinvansh05/Kronos)  
+**Live:** [https://kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev)
 
 Live market charts for any ticker, plus **24–48 hour** forecasts powered by the
 open-source Kronos foundation model. Built as a focused foresight instrument —
@@ -20,14 +21,14 @@ not a purple AI dashboard.
 | `webapp/backtest_tune.py` | Walk-forward parameter search → tuned defaults |
 | `examples/`, `finetune/`, `finetune_csv/` | Upstream-style scripts kept for research |
 | `webui/` | Legacy CSV demo UI (superseded by `webapp/`) |
-| `docs/` | Design prompt + Apple HIG skill notes |
+| `docs/` | Design prompt, Heroku phone deploy guide, Apple HIG notes |
 
 ---
 
 ## Quick start
 
 ```bash
-# Python 3.10+
+# Python 3.12 recommended (required on Heroku)
 pip install -r requirements.txt
 pip install -r webapp/requirements.txt
 
@@ -36,18 +37,24 @@ python run.py
 # → http://localhost:7070
 ```
 
-### Public hosting (phone-friendly)
+### Live demo
 
-GitHub Student Pack → Heroku: see
+Production site: **[kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev)**  
+(Heroku + custom domain on Cloudflare DNS)
+
+Phone-friendly deploy guide (GitHub Student Pack → Heroku):
 [`docs/MOBILE_DEPLOY_HEROKU.md`](./docs/MOBILE_DEPLOY_HEROKU.md).
 
-Heroku needs **Python 3.12** (see `.python-version`). Deploy the branch that
-contains the webapp, then **Deploy Branch** again after pulling latest.
+Deploy **`master`** (it includes the webapp, Python 3.12 pin, Dockerfile / Procfile).
+Enable Heroku **Automatic Deploys** on `master` after connecting GitHub.
+
+### Try it
 
 1. Search a ticker (`AAPL`, `MSFT`, `SPY`, `BTC-USD`, …)
 2. Pick a display range: **1D · 5D · 1W · 1M · 3M · 6M · 1Y · 5Y**
 3. Set forecast horizon (24h / 48h) and bar size (15m / 30m / 1h)
-4. Click **Predict Next Hours**
+4. Toggle **dark / light** theme if you like
+5. Click **Predict Next Hours** (Expand the chart for a fuller view)
 
 ---
 
@@ -58,7 +65,10 @@ contains the webapp, then **Deploy Branch** again after pulling latest.
 - **Continuous packed candles** + close line + volume (no calendar gaps)
 - **Kronos-mini / small / base** with T, top_p, sample_count controls
 - **Tuned defaults** from historical backtests (`GET /api/defaults`)
-- Light “cool mist” UI (Space Grotesk + IBM Plex, teal accent)
+- **Dark / light theme** (persisted; respects system preference)
+- **Mobile-ready chart UX** — denser viewport, sticky Predict CTA, Reset / Expand
+- Cool-mist UI (Space Grotesk + IBM Plex, teal accent)
+- Heroku-ready: `.python-version` 3.12, CPU PyTorch wheels, `Procfile` / `Dockerfile`
 
 ### Backtest / tune
 
@@ -104,6 +114,8 @@ Pretrained checkpoints are loaded from Hugging Face (upstream NeoQuasar):
 
 This repository is maintained by **Vansh Bhasin**. See [`NOTICE`](./NOTICE) and
 [`LICENSE`](./LICENSE).
+
+Live product: [kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev)
 
 The Kronos model architecture and published weights are open-source work by
 ShiYu / NeoQuasar (MIT). Application code, UI, data plumbing, and tooling in

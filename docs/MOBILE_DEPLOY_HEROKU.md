@@ -23,7 +23,7 @@ Estimated time: **45–90 minutes** the first time (account linking + first buil
 1. You are a **verified GitHub Student** (Student Developer Pack active).
 2. You can open [https://education.github.com/pack](https://education.github.com/pack) while logged into GitHub.
 3. Your code is on GitHub: [https://github.com/bhasinvansh05/Kronos](https://github.com/bhasinvansh05/Kronos)  
-   Prefer the branch that has the webapp (e.g. `cursor/kronos-prediction-webapp-78e3` or `master` after merge).
+   Deploy from **`master`**. Live site: [https://kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev).
 4. Phone charger nearby — first Docker build can take **10–20+ minutes**.
 
 ---
@@ -103,10 +103,9 @@ Torch needs RAM. Eco (512MB) often crashes.
 2. Tap **Connect** next to **bhasinvansh05/Kronos**.
 
 ### C3. Pick the branch
-1. Under **Automatic deploys** / **Manual deploy**, choose the branch that contains the webapp:
-   - Prefer: `cursor/kronos-prediction-webapp-78e3` (if not merged yet), **or**
-   - `master` / `main` (after you merge the PR).
-2. Optional but recommended: enable **Automatic deploys** → **Enable Automatic Deploys**.
+1. Under **Automatic deploys** / **Manual deploy**, choose **`master`**.
+   That branch has the webapp, Python 3.12 pin, `Procfile`, and `Dockerfile`.
+2. Recommended: enable **Automatic deploys** → **Enable Automatic Deploys** on `master`.
 
 ### C4. First deploy
 1. Scroll to **Manual deploy**.
@@ -119,8 +118,10 @@ Torch needs RAM. Eco (512MB) often crashes.
 ### C5. Open the site
 1. Tap **Open app** (top right), or visit:  
    `https://YOUR-APP-NAME.herokuapp.com`
-2. You should see **KRONOS · Market foresight · by Vansh Bhasin**.
-3. Search **AAPL** → wait for chart → set **24h** → **Predict Next Hours**.
+2. Custom domain (production): **[https://kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev)**  
+   (Cloudflare DNS CNAME → Heroku DNS target; ACM SSL on Heroku)
+3. You should see **KRONOS · Market foresight · by Vansh Bhasin**.
+4. Search **AAPL** → wait for chart → set **24h** → **Predict Next Hours**.
 
 ---
 
@@ -210,8 +211,8 @@ Azure’s student credit usually allows a bit more RAM headroom than Heroku Eco.
 
 | Task | Where |
 |------|--------|
-| See site | `https://YOUR-APP-NAME.herokuapp.com` |
-| Push updates | Merge to the connected branch on GitHub → auto-deploy |
+| See site | [kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev) (or `https://YOUR-APP-NAME.herokuapp.com`) |
+| Push updates | Merge to **`master`** on GitHub → auto-deploy |
 | Logs | Heroku → More → View logs |
 | Turn off to save credits | Resources → web dyno → scale to **0** (site goes offline) |
 | Turn back on | Scale web dyno to **1** |
