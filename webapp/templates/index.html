@@ -920,12 +920,22 @@
       .canvas {
         min-height: auto;
         order: 1;
-        padding: 14px 12px 10px;
+        padding: 12px 10px 8px;
       }
-      .chart-shell, #chart { min-height: min(62vh, 520px); }
+      .chart-shell {
+        min-height: min(58dvh, 480px);
+        touch-action: none;
+        overflow: hidden;
+      }
+      #chart {
+        min-height: min(58dvh, 480px);
+        touch-action: none;
+      }
       .chart-shell.expanded, .chart-shell.expanded #chart {
         min-height: calc(100dvh - 24px) !important;
       }
+      /* Plotly's mode bar is too small for thumbs — use Reset / Expand instead */
+      .modebar, .modebar-container { display: none !important; }
       .model-chip .device-label,
       .model-chip #modelStatus { display: none; }
       .topbar {
@@ -941,18 +951,44 @@
       .inst-title { font-size: 20px; }
       .inst-price { font-size: 20px; width: 100%; margin-left: 0; }
       .inst-name { font-size: 13px; }
-      .chart-toolbar { gap: 8px; }
-      .range-bar { width: 100%; }
-      .chart-tools { width: 100%; justify-content: flex-end; }
+      .chart-toolbar {
+        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .range-bar {
+        width: 100%;
+        padding: 3px;
+      }
+      .range-bar button {
+        min-height: 40px;
+        min-width: 44px;
+        font-size: 13px;
+        padding: 0 12px;
+      }
+      .chart-tools {
+        width: 100%;
+        justify-content: stretch;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .chart-tools button {
+        min-height: 44px;
+        font-size: 14px;
+        width: 100%;
+      }
       .mobile-cta { display: block; }
       .rail .btn-primary { display: none; }
       .site-footer { font-size: 11px; gap: 6px; }
       .status-strip { font-size: 12px; }
+      .status-strip .disclaimer { display: none; }
     }
 
     @media (max-width: 430px) {
       .brand-owner { display: none; }
       .inst-meta { font-size: 12px; }
+      .chart-shell, #chart { min-height: min(52dvh, 420px); }
     }
   </style>
 </head>
@@ -1186,6 +1222,11 @@
 
     $("chartReset")?.addEventListener("click", () => {
       if (!$("chart")?.data) return;
+      // Full re-render gives a clean fit on phones (category axes + volume domains).
+      if (typeof renderChart === "function" && state.bars.length) {
+        renderChart();
+        return;
+      }
       Plotly.relayout("chart", {
         "xaxis.autorange": true,
         "yaxis.autorange": true,
@@ -1421,10 +1462,26 @@
       } catch { return ts; }
     }
 
-    function formatTickLabel(ts) {
+    function isMobileViewport() {
+      return window.matchMedia("(max-width: 960px)").matches;
+    }
+
+    function formatTickLabel(ts, { compact = false } = {}) {
       try {
         const d = new Date(ts);
         const interval = state.prediction ? state.interval : state.chartInterval;
+        if (compact) {
+          // Short labels so phone axes stay readable (no "at", no year clutter).
+          if (interval === "1d" || interval === "1wk") {
+            return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          }
+          // Intraday: day + hour, e.g. "Sep 24 9a"
+          const day = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          let h = d.getHours();
+          const ap = h >= 12 ? "p" : "a";
+          h = h % 12 || 12;
+          return `${day} ${h}${ap}`;
+        }
         if (interval === "1d" || interval === "1wk") {
           return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: interval === "1wk" ? "2-digit" : undefined });
         }
@@ -1439,13 +1496,14 @@
       // Display range already scopes bars; when forecasting, show the model lookback window.
       if (state.prediction) {
         const lb = Number(lookbackEl.value) || 168;
-        const want = Math.min(state.bars.length, Math.max(lb, Math.min(220, lb + 24)));
+        const mobileCap = isMobileViewport() ? 120 : 220;
+        const want = Math.min(state.bars.length, Math.max(lb, Math.min(mobileCap, lb + 24)));
         return state.bars.slice(-want);
       }
-      // Cap very dense intraday windows for readability (tighter on small screens).
-      const narrow = window.matchMedia("(max-width: 960px)").matches;
+      // Cap very dense intraday windows for readability (tighter on phones).
+      const narrow = isMobileViewport();
       const maxBars = narrow
-        ? { "1D": 90, "5D": 140, "1W": 140, "1M": 160, "3M": 90, "6M": 120, "1Y": 180, "5Y": 200 }
+        ? { "1D": 64, "5D": 72, "1W": 80, "1M": 90, "3M": 72, "6M": 90, "1Y": 120, "5Y": 140 }
         : { "1D": 120, "5D": 200, "1W": 200, "1M": 220, "3M": 120, "6M": 180, "1Y": 260, "5Y": 280 };
       const cap = maxBars[state.displayRange] || 220;
       if (state.bars.length <= cap) return state.bars;
@@ -1482,8 +1540,34 @@
       }
       const el = $("chart");
       const h = el ? el.clientHeight : 0;
-      const mobile = window.matchMedia("(max-width: 960px)").matches;
-      return Math.max(mobile ? 360 : 500, h || (mobile ? 420 : 520));
+      const mobile = isMobileViewport();
+      if (mobile) {
+        const target = Math.round(Math.min(window.innerHeight * 0.52, 460));
+        return Math.max(340, h || target);
+      }
+      return Math.max(500, h || 520);
+    }
+
+    function buildAxisTicks(xAll, labelByKey, mobile) {
+      const target = mobile ? 4 : 8;
+      const tickStep = Math.max(1, Math.ceil(xAll.length / target));
+      const tickvals = [];
+      const ticktext = [];
+      for (let i = 0; i < xAll.length; i += tickStep) {
+        tickvals.push(xAll[i]);
+        ticktext.push(labelByKey[xAll[i]]);
+      }
+      if (xAll.length && tickvals[tickvals.length - 1] !== xAll[xAll.length - 1]) {
+        // Prefer replacing last tick over crowding two near the end.
+        if (tickvals.length >= 2 && xAll.length - 1 - (tickvals.length - 1) * tickStep < tickStep * 0.4) {
+          tickvals[tickvals.length - 1] = xAll[xAll.length - 1];
+          ticktext[ticktext.length - 1] = labelByKey[xAll[xAll.length - 1]];
+        } else {
+          tickvals.push(xAll[xAll.length - 1]);
+          ticktext.push(labelByKey[xAll[xAll.length - 1]]);
+        }
+      }
+      return { tickvals, ticktext };
     }
 
     function renderChart() {
@@ -1495,10 +1579,11 @@
       if (!hist.length) return;
 
       const pred = state.prediction || [];
+      const mobile = isMobileViewport();
       // Category axis packs bars edge-to-edge (no weekend/overnight gaps).
       const labels = [
-        ...hist.map(b => formatTickLabel(b.timestamp)),
-        ...pred.map(b => formatTickLabel(b.timestamp)),
+        ...hist.map(b => formatTickLabel(b.timestamp, { compact: mobile })),
+        ...pred.map(b => formatTickLabel(b.timestamp, { compact: mobile })),
       ];
       // Unique keys for Plotly category axis (labels can repeat across days).
       const xHist = hist.map((_, i) => `h${i}`);
@@ -1508,17 +1593,7 @@
       xHist.forEach((k, i) => { labelByKey[k] = labels[i]; });
       xPred.forEach((k, i) => { labelByKey[k] = labels[hist.length + i]; });
 
-      const tickStep = Math.max(1, Math.round(xAll.length / 8));
-      const tickvals = [];
-      const ticktext = [];
-      for (let i = 0; i < xAll.length; i += tickStep) {
-        tickvals.push(xAll[i]);
-        ticktext.push(labelByKey[xAll[i]]);
-      }
-      if (xAll.length && tickvals[tickvals.length - 1] !== xAll[xAll.length - 1]) {
-        tickvals.push(xAll[xAll.length - 1]);
-        ticktext.push(labelByKey[xAll[xAll.length - 1]]);
-      }
+      const { tickvals, ticktext } = buildAxisTicks(xAll, labelByKey, mobile);
 
       const theme = chartTheme();
       const histVolColors = hist.map(b =>
@@ -1558,8 +1633,9 @@
           mode: "lines",
           x: xHist,
           y: hist.map(b => b.close),
-          line: { color: theme.close, width: 1.75, shape: "linear" },
+          line: { color: theme.close, width: mobile ? 1.5 : 1.75, shape: "linear" },
           hoverinfo: "skip",
+          showlegend: !mobile,
           xaxis: "x",
           yaxis: "y",
         },
@@ -1570,6 +1646,7 @@
           y: hist.map(b => b.volume),
           marker: { color: histVolColors, line: { width: 0 } },
           width: 0.9,
+          showlegend: !mobile,
           xaxis: "x",
           yaxis: "y2",
           hovertemplate: "%{y:,.0f}<extra>Volume</extra>",
@@ -1646,15 +1723,17 @@
           y0: 0, y1: 1,
           line: { color: theme.accent, width: 1.5, dash: "dash" },
         });
-        annotations.push({
-          x: startKey, y: 1, xref: "x", yref: "paper",
-          text: "Forecast start",
-          showarrow: false,
-          yanchor: "bottom",
-          font: { size: 11, color: theme.accent, family: "IBM Plex Sans" },
-          xanchor: "left",
-          xshift: 4,
-        });
+        if (!mobile) {
+          annotations.push({
+            x: startKey, y: 1, xref: "x", yref: "paper",
+            text: "Forecast start",
+            showarrow: false,
+            yanchor: "bottom",
+            font: { size: 11, color: theme.accent, family: "IBM Plex Sans" },
+            xanchor: "left",
+            xshift: 4,
+          });
+        }
       }
 
       // Price padding so candles aren't clipped against the frame.
@@ -1664,21 +1743,20 @@
       ].filter(v => v != null && !Number.isNaN(v));
       const pMin = Math.min(...allPrices);
       const pMax = Math.max(...allPrices);
-      const pad = (pMax - pMin) * 0.06 || pMax * 0.01;
-      const mobile = window.matchMedia("(max-width: 960px)").matches;
+      const pad = (pMax - pMin) * (mobile ? 0.08 : 0.06) || pMax * 0.01;
 
       const layout = {
         margin: mobile
-          ? { l: 8, r: 44, t: 36, b: 40 }
+          ? { l: 4, r: 40, t: 18, b: 36 }
           : { l: 16, r: 56, t: 36, b: 48 },
         paper_bgcolor: theme.paper,
         plot_bgcolor: theme.paper,
-        showlegend: true,
+        showlegend: !mobile,
         legend: {
           orientation: "h",
           y: 1.14,
           x: 0,
-          font: { family: "IBM Plex Sans", size: mobile ? 11 : 12, color: theme.secondary },
+          font: { family: "IBM Plex Sans", size: 12, color: theme.secondary },
           bgcolor: "rgba(0,0,0,0)",
         },
         xaxis: {
@@ -1692,13 +1770,18 @@
           showgrid: true,
           gridcolor: theme.grid,
           zeroline: false,
-          tickangle: mobile ? -30 : 0,
+          tickangle: 0,
           tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.tertiary },
           showline: false,
-          automargin: true,
+          automargin: !mobile,
+          fixedrange: false,
+          spikemode: mobile ? "across" : undefined,
+          spikesnap: mobile ? "cursor" : undefined,
+          spikethickness: mobile ? 1 : undefined,
+          spikecolor: mobile ? theme.tertiary : undefined,
         },
         yaxis: {
-          domain: [0.24, 1],
+          domain: mobile ? [0.22, 1] : [0.24, 1],
           gridcolor: theme.grid,
           zeroline: false,
           tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.secondary },
@@ -1706,9 +1789,10 @@
           fixedrange: false,
           separatethousands: true,
           side: "right",
+          nticks: mobile ? 5 : undefined,
         },
         yaxis2: {
-          domain: [0, 0.18],
+          domain: mobile ? [0, 0.14] : [0, 0.18],
           gridcolor: theme.grid,
           showticklabels: false,
           zeroline: false,
@@ -1717,27 +1801,34 @@
         shapes,
         annotations,
         font: { family: "IBM Plex Sans", color: theme.ink },
-        hovermode: "x unified",
+        hovermode: mobile ? "closest" : "x unified",
         hoverlabel: {
           bgcolor: theme.hoverBg,
           bordercolor: theme.hoverBg,
-          font: { family: "IBM Plex Sans", size: 12, color: theme.hoverFg },
+          font: { family: "IBM Plex Sans", size: mobile ? 11 : 12, color: theme.hoverFg },
         },
-        dragmode: mobile ? "pan" : "zoom",
+        dragmode: "pan",
         bargap: 0.08,
         height: chartHeight(),
       };
 
       const config = {
         responsive: true,
-        displayModeBar: true,
+        displayModeBar: !mobile,
         displaylogo: false,
-        scrollZoom: true,
+        scrollZoom: !mobile,
+        doubleClick: "reset",
         modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "toImage"],
         modeBarButtonsToAdd: [],
       };
       try {
         Plotly.react("chart", traces, layout, config);
+        // Ensure layout matches the shell after fonts/CSS settle on phones.
+        if (mobile) {
+          requestAnimationFrame(() => {
+            try { Plotly.Plots.resize("chart"); } catch (_) {}
+          });
+        }
       } catch (err) {
         console.error("Plotly render failed", err);
         throw err;
