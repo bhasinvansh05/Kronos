@@ -2,18 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
   <title>Kronos Market Foresight · Vansh Bhasin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script>
+    // Apply theme before paint to avoid flash
+    (function () {
+      try {
+        var t = localStorage.getItem("kronos_theme");
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+  </script>
   <style>
-    :root {
+    :root, [data-theme="light"] {
       --bg-base: #EEF1F4;
-      --bg-elevated: rgba(255, 255, 255, 0.78);
+      --bg-elevated: rgba(255, 255, 255, 0.82);
       --bg-rail: rgba(248, 250, 252, 0.94);
       --bg-chart: #F7F9FB;
+      --bg-input: #FFFFFF;
       --stroke-subtle: rgba(15, 23, 42, 0.08);
       --stroke-strong: rgba(15, 23, 42, 0.16);
       --ink-primary: #0F172A;
@@ -32,11 +48,54 @@
       --focus-ring: #0F766E;
       --blur-bar: saturate(180%) blur(20px);
       --shadow-soft: 0 1px 0 rgba(15, 23, 42, 0.04), 0 12px 40px rgba(15, 23, 42, 0.06);
+      --seg-track: rgba(15, 23, 42, 0.05);
+      --seg-active: #FFFFFF;
+      --close-line: rgba(15, 23, 42, 0.50);
+      --grid: rgba(15, 23, 42, 0.07);
       --radius-panel: 14px;
       --radius-control: 10px;
       --font-display: "Space Grotesk", sans-serif;
       --font-ui: "IBM Plex Sans", sans-serif;
       --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      --bg-grad-top: #E8EEF3;
+      --bg-grad-mid: #EEF1F4;
+      --bg-grad-bot: #F4F6F8;
+      --tick-line: rgba(15, 23, 42, 0.035);
+      color-scheme: light;
+    }
+
+    [data-theme="dark"] {
+      --bg-base: #0B1220;
+      --bg-elevated: rgba(17, 24, 39, 0.88);
+      --bg-rail: rgba(15, 23, 42, 0.92);
+      --bg-chart: #0F172A;
+      --bg-input: #111827;
+      --stroke-subtle: rgba(148, 163, 184, 0.14);
+      --stroke-strong: rgba(148, 163, 184, 0.28);
+      --ink-primary: #E5E7EB;
+      --ink-secondary: #94A3B8;
+      --ink-tertiary: #64748B;
+      --accent: #2DD4BF;
+      --accent-hover: #5EEAD4;
+      --accent-soft: #14B8A6;
+      --accent-tint: rgba(45, 212, 191, 0.14);
+      --up: #2DD4BF;
+      --down: #FB7185;
+      --volume: rgba(148, 163, 184, 0.35);
+      --ok: #34D399;
+      --warn: #FBBF24;
+      --error: #F87171;
+      --focus-ring: #2DD4BF;
+      --shadow-soft: 0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 48px rgba(0, 0, 0, 0.35);
+      --seg-track: rgba(148, 163, 184, 0.10);
+      --seg-active: #1F2937;
+      --close-line: rgba(226, 232, 240, 0.55);
+      --grid: rgba(148, 163, 184, 0.10);
+      --bg-grad-top: #0B1220;
+      --bg-grad-mid: #0F172A;
+      --bg-grad-bot: #111827;
+      --tick-line: rgba(148, 163, 184, 0.06);
+      color-scheme: dark;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,11 +110,13 @@
           to bottom,
           transparent,
           transparent 47px,
-          rgba(15, 23, 42, 0.035) 47px,
-          rgba(15, 23, 42, 0.035) 48px
+          var(--tick-line) 47px,
+          var(--tick-line) 48px
         ),
-        linear-gradient(180deg, #E8EEF3 0%, #EEF1F4 45%, #F4F6F8 100%);
+        linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-mid) 45%, var(--bg-grad-bot) 100%);
       background-attachment: fixed;
+      transition: background 220ms ease, color 180ms ease;
+      -webkit-tap-highlight-color: transparent;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -158,12 +219,14 @@
       padding: 0 14px 0 40px;
       border-radius: 12px;
       border: 1px solid var(--stroke-subtle);
-      background: #fff;
+      background: var(--bg-input);
       font-family: var(--font-ui);
-      font-size: 15px;
+      font-size: 16px;
       color: var(--ink-primary);
-      transition: border-color 160ms ease, box-shadow 160ms ease;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 180ms ease;
     }
+
+    .search-wrap input::placeholder { color: var(--ink-tertiary); }
 
     .search-wrap input:focus {
       outline: none;
@@ -188,12 +251,14 @@
       top: calc(100% + 6px);
       left: 0;
       right: 0;
-      background: #fff;
+      background: var(--bg-input);
       border: 1px solid var(--stroke-subtle);
       border-radius: var(--radius-control);
       box-shadow: var(--shadow-soft);
       overflow: hidden;
       display: none;
+      max-height: min(320px, 50vh);
+      overflow-y: auto;
     }
 
     .suggestions.open { display: block; }
@@ -240,8 +305,44 @@
       flex-shrink: 0;
     }
 
-    .model-chip {
+    .topbar-actions {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .theme-toggle {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--stroke-subtle);
+      background: var(--bg-input);
+      color: var(--ink-secondary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+    }
+
+    .theme-toggle:hover {
+      color: var(--ink-primary);
+      border-color: var(--stroke-strong);
+    }
+
+    .theme-toggle:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+    [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+    .model-chip {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -345,22 +446,36 @@
       color: var(--ink-tertiary);
     }
 
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 10px;
+      flex-wrap: wrap;
+    }
+
     .range-bar {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: 4px;
-      margin: 0 0 12px;
+      margin: 0;
       padding: 4px;
-      background: rgba(15, 23, 42, 0.05);
+      background: var(--seg-track);
       border-radius: var(--radius-control);
       width: fit-content;
       max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+
+    .range-bar::-webkit-scrollbar { display: none; }
 
     .range-bar button {
       border: 0;
       background: transparent;
-      min-height: 32px;
+      min-height: 36px;
       min-width: 40px;
       padding: 0 10px;
       border-radius: 8px;
@@ -371,13 +486,49 @@
       color: var(--ink-secondary);
       cursor: pointer;
       transition: background 160ms ease, color 160ms ease;
+      flex: 0 0 auto;
     }
 
     .range-bar button[aria-pressed="true"] {
-      background: #fff;
+      background: var(--seg-active);
       color: var(--accent);
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     }
+
+    .chart-tools {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .chart-tools button {
+      border: 1px solid var(--stroke-subtle);
+      background: var(--bg-input);
+      color: var(--ink-secondary);
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 0 10px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .chart-tools button:hover { color: var(--ink-primary); border-color: var(--stroke-strong); }
+    .chart-tools button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+    .chart-shell.expanded {
+      position: fixed;
+      inset: 12px;
+      z-index: 80;
+      min-height: auto !important;
+      height: auto;
+      border-radius: 16px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    body.chart-expanded { overflow: hidden; }
+    body.chart-expanded .mobile-cta { display: none !important; }
 
     .range-bar button:hover {
       color: var(--ink-primary);
@@ -512,14 +663,14 @@
       grid-auto-columns: 1fr;
       gap: 4px;
       padding: 4px;
-      background: rgba(15, 23, 42, 0.05);
+      background: var(--seg-track);
       border-radius: var(--radius-control);
     }
 
     .seg button {
       border: 0;
       background: transparent;
-      min-height: 36px;
+      min-height: 40px;
       border-radius: 8px;
       font-family: var(--font-ui);
       font-size: 13px;
@@ -530,7 +681,7 @@
     }
 
     .seg button[aria-pressed="true"] {
-      background: #fff;
+      background: var(--seg-active);
       color: var(--ink-primary);
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     }
@@ -561,13 +712,13 @@
 
     select, .num {
       width: 100%;
-      height: 40px;
+      height: 44px;
       border-radius: var(--radius-control);
       border: 1px solid var(--stroke-subtle);
-      background: #fff;
+      background: var(--bg-input);
       padding: 0 12px;
       font-family: var(--font-ui);
-      font-size: 14px;
+      font-size: 16px;
       color: var(--ink-primary);
     }
 
@@ -586,13 +737,13 @@
 
     .chip {
       border: 1px solid var(--stroke-subtle);
-      background: #fff;
+      background: var(--bg-input);
       border-radius: 8px;
       padding: 6px 10px;
       font-size: 12px;
       color: var(--ink-secondary);
       cursor: pointer;
-      min-height: 32px;
+      min-height: 36px;
       font-family: var(--font-ui);
     }
 
@@ -747,26 +898,61 @@
     }
 
     table.data th:first-child, table.data td:first-child { text-align: left; }
-    table.data th { background: rgba(15,23,42,0.03); color: var(--ink-secondary); font-weight: 500; }
+    table.data th { background: var(--seg-track); color: var(--ink-secondary); font-weight: 500; }
+    table.data td { color: var(--ink-primary); }
 
     .mobile-cta {
       display: none;
       position: sticky;
-      bottom: 12px;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       z-index: 30;
       padding: 0 4px;
     }
 
+    .mobile-cta .btn-primary {
+      box-shadow: var(--shadow-soft);
+    }
+
     @media (max-width: 960px) {
-      .layout { grid-template-columns: 1fr; }
-      .rail { position: static; order: 2; }
-      .canvas { min-height: 520px; order: 1; }
-      .chart-shell, #chart { min-height: 55vh; }
-      .model-chip .device-label { display: none; }
-      .topbar { flex-wrap: wrap; }
+      .shell { padding: 12px 12px 28px; }
+      .layout { grid-template-columns: 1fr; gap: 12px; }
+      .rail { position: static; order: 2; padding: 16px; }
+      .canvas {
+        min-height: auto;
+        order: 1;
+        padding: 14px 12px 10px;
+      }
+      .chart-shell, #chart { min-height: min(62vh, 520px); }
+      .chart-shell.expanded, .chart-shell.expanded #chart {
+        min-height: calc(100dvh - 24px) !important;
+      }
+      .model-chip .device-label,
+      .model-chip #modelStatus { display: none; }
+      .topbar {
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px;
+      }
+      .brand-mark { font-size: 24px; }
+      .brand-sub { display: none; }
       .search-wrap { max-width: none; order: 3; flex-basis: 100%; }
+      .topbar-actions { order: 2; }
+      .instrument-header { gap: 6px 12px; margin-bottom: 10px; }
+      .inst-title { font-size: 20px; }
+      .inst-price { font-size: 20px; width: 100%; margin-left: 0; }
+      .inst-name { font-size: 13px; }
+      .chart-toolbar { gap: 8px; }
+      .range-bar { width: 100%; }
+      .chart-tools { width: 100%; justify-content: flex-end; }
       .mobile-cta { display: block; }
       .rail .btn-primary { display: none; }
+      .site-footer { font-size: 11px; gap: 6px; }
+      .status-strip { font-size: 12px; }
+    }
+
+    @media (max-width: 430px) {
+      .brand-owner { display: none; }
+      .inst-meta { font-size: 12px; }
     }
   </style>
 </head>
@@ -786,10 +972,21 @@
         <input id="search" type="search" placeholder="Search ticker (AAPL, BTC-USD)" autocomplete="off" aria-label="Search market ticker" aria-autocomplete="list" aria-controls="suggestions" />
         <div id="suggestions" class="suggestions" role="listbox"></div>
       </div>
-      <div class="model-chip" aria-live="polite">
-        <span class="status-dot" id="statusDot"></span>
-        <span id="modelStatus">Model idle</span>
-        <span class="device-label" id="deviceLabel"></span>
+      <div class="topbar-actions">
+        <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5 5l1.6 1.6M17.4 17.4 19 19M19 5l-1.6 1.6M6.6 17.4 5 19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="model-chip" aria-live="polite">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="modelStatus">Model idle</span>
+          <span class="device-label" id="deviceLabel"></span>
+        </div>
       </div>
     </header>
 
@@ -805,18 +1002,24 @@
           <div class="inst-meta" id="instMeta"></div>
         </div>
 
-        <div class="range-bar" id="rangeBar" role="group" aria-label="Chart display range">
-          <button type="button" data-range="1D" aria-pressed="false">1D</button>
-          <button type="button" data-range="5D" aria-pressed="false">5D</button>
-          <button type="button" data-range="1W" aria-pressed="false">1W</button>
-          <button type="button" data-range="1M" aria-pressed="true">1M</button>
-          <button type="button" data-range="3M" aria-pressed="false">3M</button>
-          <button type="button" data-range="6M" aria-pressed="false">6M</button>
-          <button type="button" data-range="1Y" aria-pressed="false">1Y</button>
-          <button type="button" data-range="5Y" aria-pressed="false">5Y</button>
+        <div class="chart-toolbar">
+          <div class="range-bar" id="rangeBar" role="group" aria-label="Chart display range">
+            <button type="button" data-range="1D" aria-pressed="false">1D</button>
+            <button type="button" data-range="5D" aria-pressed="false">5D</button>
+            <button type="button" data-range="1W" aria-pressed="false">1W</button>
+            <button type="button" data-range="1M" aria-pressed="true">1M</button>
+            <button type="button" data-range="3M" aria-pressed="false">3M</button>
+            <button type="button" data-range="6M" aria-pressed="false">6M</button>
+            <button type="button" data-range="1Y" aria-pressed="false">1Y</button>
+            <button type="button" data-range="5Y" aria-pressed="false">5Y</button>
+          </div>
+          <div class="chart-tools">
+            <button type="button" id="chartReset" title="Reset zoom">Reset</button>
+            <button type="button" id="chartExpand" title="Expand chart" aria-pressed="false">Expand</button>
+          </div>
         </div>
 
-        <div class="chart-shell" style="position:relative;flex:1;min-height:480px;">
+        <div class="chart-shell" id="chartShell">
           <div id="chart" role="img" aria-label="Market candlestick chart"></div>
           <div class="chart-empty" id="chartEmpty">
             <h3>Search a ticker to load the market</h3>
@@ -958,6 +1161,65 @@
     const modelKeyEl = $("modelKey");
 
     const INTERVAL_HOURS = { "15m": 0.25, "30m": 0.5, "1h": 1 };
+
+    function currentTheme() {
+      return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    }
+
+    function setTheme(theme) {
+      const next = theme === "dark" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("kronos_theme", next); } catch (_) {}
+      const btn = $("themeToggle");
+      if (btn) {
+        btn.setAttribute("aria-label", next === "dark" ? "Switch to light mode" : "Switch to dark mode");
+        btn.title = next === "dark" ? "Light mode" : "Dark mode";
+      }
+      if (state.bars && state.bars.length) {
+        try { renderChart(); } catch (_) {}
+      }
+    }
+
+    $("themeToggle")?.addEventListener("click", () => {
+      setTheme(currentTheme() === "dark" ? "light" : "dark");
+    });
+
+    $("chartReset")?.addEventListener("click", () => {
+      if (!$("chart")?.data) return;
+      Plotly.relayout("chart", {
+        "xaxis.autorange": true,
+        "yaxis.autorange": true,
+      });
+    });
+
+    $("chartExpand")?.addEventListener("click", () => {
+      const shell = $("chartShell");
+      const btn = $("chartExpand");
+      if (!shell || !btn) return;
+      const on = !shell.classList.contains("expanded");
+      shell.classList.toggle("expanded", on);
+      document.body.classList.toggle("chart-expanded", on);
+      btn.setAttribute("aria-pressed", String(on));
+      btn.textContent = on ? "Close" : "Expand";
+      requestAnimationFrame(() => {
+        if (state.bars.length) renderChart();
+        try { Plotly.Plots.resize("chart"); } catch (_) {}
+      });
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && $("chartShell")?.classList.contains("expanded")) {
+        $("chartExpand")?.click();
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (state.bars.length) renderChart();
+      }, 160);
+    });
     const RANGE_LABELS = {
       "1D": "1 day", "5D": "5 days", "1W": "1 week", "1M": "1 month",
       "3M": "3 months", "6M": "6 months", "1Y": "1 year", "5Y": "5 years",
@@ -1180,11 +1442,48 @@
         const want = Math.min(state.bars.length, Math.max(lb, Math.min(220, lb + 24)));
         return state.bars.slice(-want);
       }
-      // Cap very dense intraday windows for readability.
-      const maxBars = { "1D": 120, "5D": 200, "1W": 200, "1M": 220, "3M": 120, "6M": 180, "1Y": 260, "5Y": 280 };
+      // Cap very dense intraday windows for readability (tighter on small screens).
+      const narrow = window.matchMedia("(max-width: 960px)").matches;
+      const maxBars = narrow
+        ? { "1D": 90, "5D": 140, "1W": 140, "1M": 160, "3M": 90, "6M": 120, "1Y": 180, "5Y": 200 }
+        : { "1D": 120, "5D": 200, "1W": 200, "1M": 220, "3M": 120, "6M": 180, "1Y": 260, "5Y": 280 };
       const cap = maxBars[state.displayRange] || 220;
       if (state.bars.length <= cap) return state.bars;
       return state.bars.slice(-cap);
+    }
+
+    function cssVar(name, fallback) {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    }
+
+    function chartTheme() {
+      const dark = document.documentElement.getAttribute("data-theme") === "dark";
+      return {
+        dark,
+        paper: cssVar("--bg-chart", dark ? "#0F172A" : "#F7F9FB"),
+        ink: cssVar("--ink-primary", dark ? "#E5E7EB" : "#0F172A"),
+        secondary: cssVar("--ink-secondary", dark ? "#94A3B8" : "#475569"),
+        tertiary: cssVar("--ink-tertiary", dark ? "#64748B" : "#64748B"),
+        grid: cssVar("--grid", dark ? "rgba(148,163,184,0.10)" : "rgba(15,23,42,0.07)"),
+        close: cssVar("--close-line", dark ? "rgba(226,232,240,0.55)" : "rgba(15,23,42,0.50)"),
+        accent: cssVar("--accent", dark ? "#2DD4BF" : "#0F766E"),
+        up: cssVar("--up", dark ? "#2DD4BF" : "#0D9488"),
+        down: cssVar("--down", dark ? "#FB7185" : "#E11D48"),
+        hoverBg: dark ? "#E5E7EB" : "#0F172A",
+        hoverFg: dark ? "#0F172A" : "#F8FAFC",
+      };
+    }
+
+    function chartHeight() {
+      const shell = $("chartShell");
+      if (shell && shell.classList.contains("expanded")) {
+        return Math.max(420, window.innerHeight - 48);
+      }
+      const el = $("chart");
+      const h = el ? el.clientHeight : 0;
+      const mobile = window.matchMedia("(max-width: 960px)").matches;
+      return Math.max(mobile ? 360 : 500, h || (mobile ? 420 : 520));
     }
 
     function renderChart() {
@@ -1221,11 +1520,15 @@
         ticktext.push(labelByKey[xAll[xAll.length - 1]]);
       }
 
+      const theme = chartTheme();
       const histVolColors = hist.map(b =>
-        b.close >= b.open ? "rgba(13,148,136,0.45)" : "rgba(225,29,72,0.40)"
+        b.close >= b.open ? (theme.dark ? "rgba(45,212,191,0.40)" : "rgba(13,148,136,0.45)")
+          : (theme.dark ? "rgba(251,113,133,0.40)" : "rgba(225,29,72,0.40)")
       );
       const predVolColors = pred.map(b =>
-        b.close >= b.open ? "rgba(20,184,166,0.35)" : "rgba(15,118,110,0.30)"
+        b.close >= b.open
+          ? (theme.dark ? "rgba(45,212,191,0.28)" : "rgba(20,184,166,0.35)")
+          : (theme.dark ? "rgba(20,184,166,0.22)" : "rgba(15,118,110,0.30)")
       );
 
       const traces = [
@@ -1243,8 +1546,8 @@
             "O %{open:.2f}  H %{high:.2f}<br>" +
             "L %{low:.2f}  C %{close:.2f}" +
             "<extra>History</extra>",
-          increasing: { line: { color: "#0F766E", width: 1 }, fillcolor: "#0D9488" },
-          decreasing: { line: { color: "#BE123C", width: 1 }, fillcolor: "#E11D48" },
+          increasing: { line: { color: theme.accent, width: 1 }, fillcolor: theme.up },
+          decreasing: { line: { color: theme.down, width: 1 }, fillcolor: theme.down },
           whiskerwidth: 0.65,
           xaxis: "x",
           yaxis: "y",
@@ -1255,7 +1558,7 @@
           mode: "lines",
           x: xHist,
           y: hist.map(b => b.close),
-          line: { color: "rgba(15,23,42,0.50)", width: 1.75, shape: "linear" },
+          line: { color: theme.close, width: 1.75, shape: "linear" },
           hoverinfo: "skip",
           xaxis: "x",
           yaxis: "y",
@@ -1295,8 +1598,8 @@
             "O %{open:.2f}  H %{high:.2f}<br>" +
             "L %{low:.2f}  C %{close:.2f}" +
             "<extra></extra>",
-          increasing: { line: { color: "#0F766E", width: 1.25 }, fillcolor: "rgba(20,184,166,0.55)" },
-          decreasing: { line: { color: "#115E59", width: 1.25 }, fillcolor: "rgba(15,118,110,0.40)" },
+          increasing: { line: { color: theme.accent, width: 1.25 }, fillcolor: theme.dark ? "rgba(45,212,191,0.45)" : "rgba(20,184,166,0.55)" },
+          decreasing: { line: { color: theme.dark ? "#0F766E" : "#115E59", width: 1.25 }, fillcolor: theme.dark ? "rgba(15,118,110,0.35)" : "rgba(15,118,110,0.40)" },
           whiskerwidth: 0.65,
           xaxis: "x",
           yaxis: "y",
@@ -1307,7 +1610,7 @@
           mode: "lines",
           x: bridgeX,
           y: bridgeY,
-          line: { color: "#0F766E", width: 2.25, shape: "linear" },
+          line: { color: theme.accent, width: 2.25, shape: "linear" },
           hoverinfo: "skip",
           xaxis: "x",
           yaxis: "y",
@@ -1332,7 +1635,7 @@
           xref: "x", yref: "paper",
           x0: startKey, x1: endKey,
           y0: 0, y1: 1,
-          fillcolor: "rgba(20, 184, 166, 0.09)",
+          fillcolor: theme.dark ? "rgba(45, 212, 191, 0.10)" : "rgba(20, 184, 166, 0.09)",
           line: { width: 0 },
           layer: "below",
         });
@@ -1341,14 +1644,14 @@
           xref: "x", yref: "paper",
           x0: startKey, x1: startKey,
           y0: 0, y1: 1,
-          line: { color: "#0F766E", width: 1.5, dash: "dash" },
+          line: { color: theme.accent, width: 1.5, dash: "dash" },
         });
         annotations.push({
           x: startKey, y: 1, xref: "x", yref: "paper",
           text: "Forecast start",
           showarrow: false,
           yanchor: "bottom",
-          font: { size: 11, color: "#0F766E", family: "IBM Plex Sans" },
+          font: { size: 11, color: theme.accent, family: "IBM Plex Sans" },
           xanchor: "left",
           xshift: 4,
         });
@@ -1362,17 +1665,20 @@
       const pMin = Math.min(...allPrices);
       const pMax = Math.max(...allPrices);
       const pad = (pMax - pMin) * 0.06 || pMax * 0.01;
+      const mobile = window.matchMedia("(max-width: 960px)").matches;
 
       const layout = {
-        margin: { l: 56, r: 18, t: 28, b: 48 },
-        paper_bgcolor: "#F7F9FB",
-        plot_bgcolor: "#F7F9FB",
+        margin: mobile
+          ? { l: 8, r: 44, t: 36, b: 40 }
+          : { l: 16, r: 56, t: 36, b: 48 },
+        paper_bgcolor: theme.paper,
+        plot_bgcolor: theme.paper,
         showlegend: true,
         legend: {
           orientation: "h",
-          y: 1.12,
+          y: 1.14,
           x: 0,
-          font: { family: "IBM Plex Sans", size: 12, color: "#475569" },
+          font: { family: "IBM Plex Sans", size: mobile ? 11 : 12, color: theme.secondary },
           bgcolor: "rgba(0,0,0,0)",
         },
         xaxis: {
@@ -1384,18 +1690,18 @@
           ticktext,
           rangeslider: { visible: false },
           showgrid: true,
-          gridcolor: "rgba(15,23,42,0.06)",
+          gridcolor: theme.grid,
           zeroline: false,
-          tickangle: 0,
-          tickfont: { family: "IBM Plex Mono", size: 11, color: "#64748B" },
+          tickangle: mobile ? -30 : 0,
+          tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.tertiary },
           showline: false,
           automargin: true,
         },
         yaxis: {
           domain: [0.24, 1],
-          gridcolor: "rgba(15,23,42,0.08)",
+          gridcolor: theme.grid,
           zeroline: false,
-          tickfont: { family: "IBM Plex Mono", size: 11, color: "#475569" },
+          tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.secondary },
           range: [pMin - pad, pMax + pad],
           fixedrange: false,
           separatethousands: true,
@@ -1403,26 +1709,33 @@
         },
         yaxis2: {
           domain: [0, 0.18],
-          gridcolor: "rgba(15,23,42,0.04)",
+          gridcolor: theme.grid,
           showticklabels: false,
           zeroline: false,
           fixedrange: true,
         },
         shapes,
         annotations,
-        font: { family: "IBM Plex Sans", color: "#0F172A" },
+        font: { family: "IBM Plex Sans", color: theme.ink },
         hovermode: "x unified",
         hoverlabel: {
-          bgcolor: "#0F172A",
-          bordercolor: "#0F172A",
-          font: { family: "IBM Plex Sans", size: 12, color: "#F8FAFC" },
+          bgcolor: theme.hoverBg,
+          bordercolor: theme.hoverBg,
+          font: { family: "IBM Plex Sans", size: 12, color: theme.hoverFg },
         },
-        dragmode: "pan",
+        dragmode: mobile ? "pan" : "zoom",
         bargap: 0.08,
-        height: Math.max(500, ($("chart").clientHeight || 500)),
+        height: chartHeight(),
       };
 
-      const config = { responsive: true, displayModeBar: false, scrollZoom: true };
+      const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false,
+        scrollZoom: true,
+        modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "toImage"],
+        modeBarButtonsToAdd: [],
+      };
       try {
         Plotly.react("chart", traces, layout, config);
       } catch (err) {
@@ -1655,6 +1968,7 @@
     }
 
     async function init() {
+      setTheme(currentTheme());
       updatePredChip();
       try {
         const health = await api("/api/health");
