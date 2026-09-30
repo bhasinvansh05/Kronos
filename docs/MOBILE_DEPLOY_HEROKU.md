@@ -229,10 +229,10 @@ Azure’s student credit usually allows a bit more RAM headroom than Heroku Eco.
 
 ## Quick success test
 
-1. Open your Heroku URL.  
+1. Open [https://kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev) (or your Heroku URL).  
 2. Search `AAPL`.  
-3. Range `1M` loads candles.  
+3. Range `1M` loads candles; theme toggle works.  
 4. Predict 24h with Kronos-mini finishes without “Application error”.  
-5. Footer shows **Vansh Bhasin**.
+5. Footer shows **Vansh Bhasin** and the custom domain.
 
 You’re live.
