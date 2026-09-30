@@ -903,18 +903,24 @@
 
     .mobile-cta {
       display: none;
-      position: sticky;
-      bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-      z-index: 30;
-      padding: 0 4px;
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      z-index: 40;
+      padding: 0;
+      pointer-events: none;
     }
 
     .mobile-cta .btn-primary {
+      pointer-events: auto;
       box-shadow: var(--shadow-soft);
+      width: 100%;
     }
 
     @media (max-width: 960px) {
-      .shell { padding: 12px 12px 28px; }
+      /* Clearance so the fixed Predict bar never covers chart axes/volume */
+      .shell { padding: 12px 12px calc(88px + env(safe-area-inset-bottom, 0px)); }
       .layout { grid-template-columns: 1fr; gap: 12px; }
       .rail { position: static; order: 2; padding: 16px; }
       .canvas {
@@ -923,12 +929,12 @@
         padding: 12px 10px 8px;
       }
       .chart-shell {
-        min-height: min(58dvh, 480px);
+        min-height: min(48dvh, 420px);
         touch-action: none;
         overflow: hidden;
       }
       #chart {
-        min-height: min(58dvh, 480px);
+        min-height: min(48dvh, 420px);
         touch-action: none;
       }
       .chart-shell.expanded, .chart-shell.expanded #chart {
@@ -988,7 +994,7 @@
     @media (max-width: 430px) {
       .brand-owner { display: none; }
       .inst-meta { font-size: 12px; }
-      .chart-shell, #chart { min-height: min(52dvh, 420px); }
+      .chart-shell, #chart { min-height: min(44dvh, 380px); }
     }
   </style>
 </head>
@@ -1542,8 +1548,8 @@
       const h = el ? el.clientHeight : 0;
       const mobile = isMobileViewport();
       if (mobile) {
-        const target = Math.round(Math.min(window.innerHeight * 0.52, 460));
-        return Math.max(340, h || target);
+        const target = Math.round(Math.min(window.innerHeight * 0.44, 400));
+        return Math.max(320, h || target);
       }
       return Math.max(500, h || 520);
     }
@@ -1747,7 +1753,7 @@
 
       const layout = {
         margin: mobile
-          ? { l: 4, r: 40, t: 18, b: 36 }
+          ? { l: 4, r: 42, t: 12, b: 56 }
           : { l: 16, r: 56, t: 36, b: 48 },
         paper_bgcolor: theme.paper,
         plot_bgcolor: theme.paper,
@@ -1771,9 +1777,10 @@
           gridcolor: theme.grid,
           zeroline: false,
           tickangle: 0,
-          tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.tertiary },
+          tickfont: { family: "IBM Plex Mono", size: mobile ? 11 : 11, color: theme.secondary },
+          showticklabels: true,
           showline: false,
-          automargin: !mobile,
+          automargin: false,
           fixedrange: false,
           spikemode: mobile ? "across" : undefined,
           spikesnap: mobile ? "cursor" : undefined,
@@ -1781,7 +1788,7 @@
           spikecolor: mobile ? theme.tertiary : undefined,
         },
         yaxis: {
-          domain: mobile ? [0.22, 1] : [0.24, 1],
+          domain: mobile ? [0.28, 1] : [0.24, 1],
           gridcolor: theme.grid,
           zeroline: false,
           tickfont: { family: "IBM Plex Mono", size: mobile ? 10 : 11, color: theme.secondary },
@@ -1792,7 +1799,7 @@
           nticks: mobile ? 5 : undefined,
         },
         yaxis2: {
-          domain: mobile ? [0, 0.14] : [0, 0.18],
+          domain: mobile ? [0.02, 0.18] : [0, 0.18],
           gridcolor: theme.grid,
           showticklabels: false,
           zeroline: false,
