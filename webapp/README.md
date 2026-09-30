@@ -3,6 +3,8 @@
 **Author:** [Vansh Bhasin](https://github.com/bhasinvansh05)  
 Part of [bhasinvansh05/Kronos](https://github.com/bhasinvansh05/Kronos)
 
+**Live:** [https://kronos.vanshbhasin.dev](https://kronos.vanshbhasin.dev)
+
 Live ticker charts + Kronos 24–48h forecasts.
 
 ## Run
@@ -15,7 +17,8 @@ pip install -r ../requirements.txt
 python run.py
 ```
 
-Open http://localhost:7070
+Open http://localhost:7070  
+Production: https://kronos.vanshbhasin.dev
 
 ## Features
 
@@ -24,6 +27,8 @@ Open http://localhost:7070
 - OHLCV candlestick + volume chart (packed continuous bars)
 - Forecast horizon 24h / 48h at 15m, 30m, or 1h bar sizes
 - Kronos-mini / small / base with sampling controls (T, top_p, samples)
+- Dark / light theme toggle (localStorage + system preference)
+- Mobile chart polish: sticky Predict CTA, Reset / Expand, denser ranges
 - Predictions logged under `prediction_results/` for backtesting
 - Tuned sampling defaults from historical backtests (`GET /api/defaults`)
 
