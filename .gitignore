@@ -73,7 +73,6 @@ venv.bak/
 *.temp
 temp/
 tmp/
-.python-version
 webapp/prediction_results/
 webapp/backtest_results/latest.json
 webapp/backtest_results/*.log
