@@ -520,18 +520,91 @@
     .chart-tools button:hover { color: var(--ink-primary); border-color: var(--stroke-strong); }
     .chart-tools button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
-    .chart-shell.expanded {
-      position: fixed;
-      inset: 12px;
-      z-index: 80;
-      min-height: auto !important;
-      height: auto;
-      border-radius: 16px;
-      box-shadow: var(--shadow-soft);
+    /* Placeholder keeps canvas height while the shell is portaled to <body>. */
+    .chart-shell-slot {
+      width: 100%;
+      min-width: 0;
     }
 
-    body.chart-expanded { overflow: hidden; }
-    body.chart-expanded .mobile-cta { display: none !important; }
+    .chart-shell.expanded {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      width: auto !important;
+      max-width: none !important;
+      min-height: 100% !important;
+      height: 100% !important;
+      margin: 0;
+      border-radius: 0;
+      border: 0;
+      box-shadow: none;
+      background: var(--bg-chart);
+      padding:
+        max(10px, env(safe-area-inset-top, 0px))
+        max(10px, env(safe-area-inset-right, 0px))
+        max(10px, env(safe-area-inset-bottom, 0px))
+        max(10px, env(safe-area-inset-left, 0px));
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-shell.expanded #chart {
+      flex: 1 1 auto;
+      width: 100% !important;
+      min-height: 0 !important;
+      height: 100% !important;
+    }
+
+    .chart-expand-bar {
+      display: none;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .chart-shell.expanded .chart-expand-bar {
+      display: flex;
+    }
+
+    .chart-expand-bar .expand-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+      color: var(--ink-primary);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chart-expand-bar button {
+      border: 1px solid var(--stroke-subtle);
+      background: var(--bg-input);
+      color: var(--ink-primary);
+      border-radius: 10px;
+      min-height: 44px;
+      min-width: 88px;
+      padding: 0 14px;
+      font-family: var(--font-ui);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    body.chart-expanded {
+      overflow: hidden;
+      touch-action: none;
+    }
+    body.chart-expanded .mobile-cta,
+    body.chart-expanded .topbar,
+    body.chart-expanded .rail,
+    body.chart-expanded .site-footer {
+      visibility: hidden;
+      pointer-events: none;
+    }
 
     .range-bar button:hover {
       color: var(--ink-primary);
@@ -961,8 +1034,12 @@
         min-height: min(48dvh, 420px);
         touch-action: none;
       }
-      .chart-shell.expanded, .chart-shell.expanded #chart {
-        min-height: calc(100dvh - 24px) !important;
+      .chart-shell.expanded {
+        min-height: 100dvh !important;
+        min-height: 100svh !important;
+      }
+      .chart-shell.expanded #chart {
+        min-height: 0 !important;
       }
       /* Plotly's mode bar is too small for thumbs — use Reset / Expand instead */
       .modebar, .modebar-container { display: none !important; }
@@ -1085,17 +1162,23 @@
           </div>
         </div>
 
-        <div class="chart-shell" id="chartShell">
-          <div id="chart" role="img" aria-label="Market candlestick chart"></div>
-          <div class="chart-empty" id="chartEmpty">
-            <h3>Search a ticker to load the market</h3>
-            <p>Pull live OHLCV for any equity, ETF, or crypto pair, then forecast the next 24–48 hours with Kronos.</p>
-          </div>
-          <div class="chart-loading" id="chartLoading" hidden>
-            <div class="skeleton-bars" aria-hidden="true">
-              <span></span><span></span><span></span><span></span><span></span><span></span>
+        <div class="chart-shell-slot" id="chartShellSlot">
+          <div class="chart-shell" id="chartShell">
+            <div class="chart-expand-bar">
+              <span class="expand-title" id="expandTitle">Chart</span>
+              <button type="button" id="chartExpandClose" aria-label="Close expanded chart">Close</button>
             </div>
-            <p id="loadingText">Loading…</p>
+            <div id="chart" role="img" aria-label="Market candlestick chart"></div>
+            <div class="chart-empty" id="chartEmpty">
+              <h3>Search a ticker to load the market</h3>
+              <p>Pull live OHLCV for any equity, ETF, or crypto pair, then forecast the next 24–48 hours with Kronos.</p>
+            </div>
+            <div class="chart-loading" id="chartLoading" hidden>
+              <div class="skeleton-bars" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <p id="loadingText">Loading…</p>
+            </div>
           </div>
         </div>
 
@@ -1263,24 +1346,59 @@
       });
     });
 
+    function setExpandedChart(on) {
+      const shell = $("chartShell");
+      const slot = $("chartShellSlot");
+      const btn = $("chartExpand");
+      if (!shell || !slot || !btn) return;
+      const currently = shell.classList.contains("expanded");
+      if (on === currently) return;
+
+      if (on) {
+        // Portal to <body> so position:fixed is not trapped by backdrop-filter parents.
+        slot.style.minHeight = `${Math.max(shell.offsetHeight, 280)}px`;
+        document.body.appendChild(shell);
+        shell.classList.add("expanded");
+        document.body.classList.add("chart-expanded");
+        const title = $("expandTitle");
+        if (title) {
+          title.textContent = state.symbol
+            ? `${state.symbol} · ${state.displayRange}`
+            : "Chart";
+        }
+        btn.setAttribute("aria-pressed", "true");
+        btn.textContent = "Close";
+        // Lock iOS Safari scroll bounce behind the overlay.
+        document.documentElement.style.overflow = "hidden";
+      } else {
+        shell.classList.remove("expanded");
+        document.body.classList.remove("chart-expanded");
+        slot.appendChild(shell);
+        slot.style.minHeight = "";
+        btn.setAttribute("aria-pressed", "false");
+        btn.textContent = "Expand";
+        document.documentElement.style.overflow = "";
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (state.bars.length) renderChart();
+          try { Plotly.Plots.resize("chart"); } catch (_) {}
+        });
+      });
+    }
+
     $("chartExpand")?.addEventListener("click", () => {
       const shell = $("chartShell");
-      const btn = $("chartExpand");
-      if (!shell || !btn) return;
-      const on = !shell.classList.contains("expanded");
-      shell.classList.toggle("expanded", on);
-      document.body.classList.toggle("chart-expanded", on);
-      btn.setAttribute("aria-pressed", String(on));
-      btn.textContent = on ? "Close" : "Expand";
-      requestAnimationFrame(() => {
-        if (state.bars.length) renderChart();
-        try { Plotly.Plots.resize("chart"); } catch (_) {}
-      });
+      if (!shell) return;
+      setExpandedChart(!shell.classList.contains("expanded"));
     });
+
+    $("chartExpandClose")?.addEventListener("click", () => setExpandedChart(false));
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && $("chartShell")?.classList.contains("expanded")) {
-        $("chartExpand")?.click();
+        setExpandedChart(false);
       }
     });
 
@@ -1616,7 +1734,10 @@
     function chartHeight() {
       const shell = $("chartShell");
       if (shell && shell.classList.contains("expanded")) {
-        return Math.max(420, window.innerHeight - 48);
+        const bar = shell.querySelector(".chart-expand-bar");
+        const barH = bar ? bar.offsetHeight + 8 : 52;
+        const pad = 24;
+        return Math.max(280, window.innerHeight - barH - pad);
       }
       const el = $("chart");
       const h = el ? el.clientHeight : 0;
