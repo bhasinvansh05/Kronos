@@ -605,6 +605,10 @@
       visibility: hidden;
       pointer-events: none;
     }
+    body.chart-expanded .modebar,
+    body.chart-expanded .modebar-container {
+      display: none !important;
+    }
 
     .range-bar button:hover {
       color: var(--ink-primary);
@@ -2018,11 +2022,12 @@
         height: chartHeight(),
       };
 
+      const expanded = !!( $("chartShell") && $("chartShell").classList.contains("expanded") );
       const config = {
         responsive: true,
-        displayModeBar: !mobile,
+        displayModeBar: !mobile && !expanded,
         displaylogo: false,
-        scrollZoom: !mobile,
+        scrollZoom: !mobile && !expanded,
         doubleClick: "reset",
         modeBarButtonsToRemove: ["lasso2d", "select2d", "autoScale2d", "toImage"],
         modeBarButtonsToAdd: [],
